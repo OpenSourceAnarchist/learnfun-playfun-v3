@@ -1,5 +1,5 @@
 uint8 *C; 
-register uint8 cc;
+uint8 cc;
 uint32 vadr;
        
 #ifndef PPUT_MMC5SP
