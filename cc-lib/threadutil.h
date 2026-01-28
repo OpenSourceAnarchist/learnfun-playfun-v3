@@ -5,6 +5,7 @@
 #include <vector>
 #include <thread>
 #include <mutex>
+#include <functional>
 
 #if 0 // not needed with TDM  - tom7 11 Oct 2015
 
@@ -16,22 +17,21 @@
 #endif
 #endif
 
+    // Do progress meter.
+    // It should be thread safe and have a way for a thread to register a sub-meter.
 
-// Do progress meter.
-// It should be thread safe and have a way for a thread to register a sub-meter.
+    // TODO: Make these functions take a "callable" template param F, rather
+    // than requiring std::function.
 
-// TODO: Make these functions take a "callable" template param F, rather
-// than requiring std::function.
-
-// Run the function f on each element of vec in parallel, with its
-// index. The caller must of course synchronize any accesses to shared
-// data structures. Return value of function is ignored.
-//
-// TODO: Implement this in terms of ParallelComp
-template<class T, class F>
-void ParallelAppi(const std::vector<T> &vec, 
-		  const F &f,
-		  int max_concurrency) {
+    // Run the function f on each element of vec in parallel, with its
+    // index. The caller must of course synchronize any accesses to shared
+    // data structures. Return value of function is ignored.
+    //
+    // TODO: Implement this in terms of ParallelComp
+    template <class T, class F>
+    void ParallelAppi(const std::vector<T> &vec,
+                      const F &f,
+                      int max_concurrency) {
   // TODO: XXX This cast may really be unsafe, since these vectors
   // could exceed 32 bit ints in practice.
   max_concurrency = std::min((int)vec.size(), max_concurrency);

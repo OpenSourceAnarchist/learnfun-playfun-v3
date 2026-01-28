@@ -10,6 +10,7 @@
 #include <string>
 #include <set>
 #include <cmath>
+#include <cstring>
 
 #include <unistd.h>
 #include <sys/types.h>
@@ -189,7 +190,7 @@ struct PlayFun {
     // For 64-bit machines with loads of ram
     // Emulator::ResetCache(100000, 10000);
     // For modest systems
-    Emulator::ResetCache(10000, 1000);
+    Emulator::ResetCache(100000, 10000);
 
     motifvec = motifs->AllMotifs();
 

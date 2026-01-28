@@ -4,15 +4,15 @@
 #
 # This number is bumped before the version is released, so to find the actual
 # revision that creates that relase just look for the v$(version) tag.
-AC_INIT([playfun], [0.2675.1], [https://github.com/gerow/playfun])
+AC_INIT([playfun], [2.0], [https://github.com/OpenSourceAnarchist/learnfun-playfun])
 AC_CONFIG_MACRO_DIR([m4])
 AM_INIT_AUTOMAKE([-Wall -Werror foreign subdir-objects])
 AC_PROG_CXX
 AM_PROG_AR
 LT_INIT
 AM_PROG_CC_C_O
-# We require C++11
-AX_CXX_COMPILE_STDCXX_11(,[mandatory])
+# We require C++23
+AX_CXX_COMPILE_STDCXX(23)
 PKG_CHECK_MODULES([SDL], [sdl])
 PKG_CHECK_MODULES([SDL_NET], [SDL_net])
 PKG_CHECK_MODULES([ZLIB], [zlib])
