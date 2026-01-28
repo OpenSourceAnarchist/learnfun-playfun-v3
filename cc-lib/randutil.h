@@ -11,7 +11,7 @@ using uint64 = uint64_t;
 using uint32 = uint32_t;
 
 // Caller owns new-ly allocated pointer.
-inline ArcFour *Substream(ArcFour *rc, int n) {
+inline auto Substream(ArcFour *rc, int n) -> ArcFour * {
   std::vector<uint8> buf;
   buf.resize(64);
   for (int i = 0; i < 4; i++) {
@@ -23,13 +23,13 @@ inline ArcFour *Substream(ArcFour *rc, int n) {
     buf[i] = rc->Byte();
   }
 
-  ArcFour *nrc = new ArcFour(buf);
+  auto *nrc = new ArcFour(buf);
   nrc->Discard(256);
   return nrc;
 }
 
 // In [0, 1].
-inline float RandFloat(ArcFour *rc) {
+inline auto RandFloat(ArcFour *rc) -> float {
   uint32 uu = 0u;
   uu = rc->Byte() | (uu << 8);
   uu = rc->Byte() | (uu << 8);
@@ -39,7 +39,7 @@ inline float RandFloat(ArcFour *rc) {
 		 (double)0x7FFFFFFF);
 };
 
-inline double RandDouble(ArcFour *rc) {
+inline auto RandDouble(ArcFour *rc) -> double {
   uint64 uu = 0u;
   uu = rc->Byte() | (uu << 8);
   uu = rc->Byte() | (uu << 8);
@@ -53,7 +53,7 @@ inline double RandDouble(ArcFour *rc) {
 	  (double)0x3FFFFFFFFFFFFFFFULL);
 };
 
-inline uint64 Rand64(ArcFour *rc) {
+inline auto Rand64(ArcFour *rc) -> uint64 {
   uint64 uu = 0ULL;
   uu = rc->Byte() | (uu << 8);
   uu = rc->Byte() | (uu << 8);
@@ -66,7 +66,7 @@ inline uint64 Rand64(ArcFour *rc) {
   return uu;
 };
 
-inline uint32 Rand32(ArcFour *rc) {
+inline auto Rand32(ArcFour *rc) -> uint32 {
   uint32 uu = 0ULL;
   uu = rc->Byte() | (uu << 8);
   uu = rc->Byte() | (uu << 8);
@@ -77,7 +77,7 @@ inline uint32 Rand32(ArcFour *rc) {
 
 // Generate uniformly distributed numbers in [0, n - 1].
 // n must be greater than or equal to 2.
-inline uint32 RandTo(ArcFour *rc, uint32 n) {
+inline auto RandTo(ArcFour *rc, uint32 n) -> uint32 {
   // We use rejection sampling, as is standard, but with
   // a modulus that's the next largest power of two. This
   // means that we succeed half the time (worst case).
@@ -131,7 +131,7 @@ struct RandomGaussian {
   double next = 0;
   ArcFour *rc = nullptr;
   explicit RandomGaussian(ArcFour *rc) : rc(rc) {}
-  double Next() {
+  auto Next() -> double {
     if (have) {
       have = false;
       return next;
@@ -153,7 +153,7 @@ struct RandomGaussian {
 };
 
 // If you need many, RandomGaussian will be twice as fast.
-inline double OneRandomGaussian(ArcFour *rc) {
+inline auto OneRandomGaussian(ArcFour *rc) -> double {
   return RandomGaussian{rc}.Next();
 }
 

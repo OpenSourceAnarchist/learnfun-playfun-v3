@@ -1,26 +1,26 @@
 
-#include <time.h>
+#include <ctime>
 
 // Extremely simple timer. Only records one start-stop span,
 // and only in seconds.
 struct Timer {
-  Timer() : starttime(0), stoptime(0) {
+  Timer()  {
     Start();
   }
 
   void Start() {
-    starttime = time(NULL);
+    starttime = time(nullptr);
   }
 
   void Stop() {
-    stoptime = time(NULL);
+    stoptime = time(nullptr);
   }
 
-  time_t Seconds() {
+  auto Seconds() -> time_t {
     Stop();
     return stoptime - starttime;
   }
 
  private:
-  time_t starttime, stoptime;
+  time_t starttime{0}, stoptime{0};
 };

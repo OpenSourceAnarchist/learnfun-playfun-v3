@@ -6,11 +6,12 @@
 
 #include <unistd.h>
 #include <sys/types.h>
-#include <string.h>
-#include <errno.h>
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstring>
+#include <cerrno>
+#include <cstdio>
+#include <cstdlib>
 #include <map>
+#include <print>
 
 #include "tasbot.h"
 
@@ -32,7 +33,7 @@
 #endif
 
 // deprecated
-#define FASTFORWARD 0
+static constexpr size_t FASTFORWARD = 0U;
 
 static void SaveMemory(vector< vector<uint8> > *memories) {
   memories->resize(memories->size() + 1);
@@ -42,12 +43,12 @@ static void SaveMemory(vector< vector<uint8> > *memories) {
   }
 }
 
-static vector< vector<int> > *objectives = NULL;
+static vector< vector<int> > *objectives = nullptr;
 static void PrintAndSave(const vector<int> &ordering) {
-  for (int i = 0; i < ordering.size(); i++) {
-    printf("%d ", ordering[i]);
+  for (int i : ordering) {
+    std::print("{} ", i);
   }
-  printf("\n");
+  std::println("");
   CHECK(objectives);
   objectives->push_back(ordering);
 }
@@ -57,14 +58,15 @@ static void PrintAndSave(const vector<int> &ordering) {
 static void GenerateNthSlices(int divisor, int num, 
 			      const vector< vector<uint8> > &memories,
 			      Objective *obj) {
-  const int onenth = memories.size() / divisor;
+  const int memory_count = static_cast<int>(memories.size());
+  const int onenth = memory_count / divisor;
   for (int slicenum = 0; slicenum < divisor; slicenum++) {
     vector<int> look;
     int low = slicenum * onenth;
     for (int i = 0; i < onenth; i++) {
       look.push_back(low + i);
     }
-    printf("For slice %ld-%ld:\n", low, low + onenth - 1);
+    std::println("For slice {}-{}:", low, low + onenth - 1);
     for (int i = 0; i < num; i++) {
       obj->EnumerateFull(look, PrintAndSave, 1, slicenum * 0xBEAD + i);
     }
@@ -77,10 +79,11 @@ static void GenerateOccasional(int stride, int offsets, int num,
   for (int off = 0; off < offsets; off++) {
     vector<int> look;
     // Consider starting at various places throughout the first stide?
-    for (int start = off; start < memories.size(); start += stride) {
+    const int memory_count = static_cast<int>(memories.size());
+    for (int start = off; start < memory_count; start += stride) {
       look.push_back(start);
     }
-    printf("For occasional @%d (every %d):\n", off, stride);
+    std::println("For occasional @{} (every {}):", off, stride);
     for (int i = 0; i < num; i++) {
       obj->EnumerateFull(look, PrintAndSave, 1, off * 0xF00D + i);
     }
@@ -89,7 +92,7 @@ static void GenerateOccasional(int stride, int offsets, int num,
 
 static void MakeObjectives(const string &game,
 			   const vector< vector<uint8> > &memories) {
-  printf("Now generating objectives.\n");
+  std::println("Now generating objectives.");
   objectives = new vector< vector<int> >;
   Objective obj(memories);
 
@@ -125,11 +128,11 @@ static void MakeObjectives(const string &game,
   GenerateOccasional(1000, 10, 1, memories, &obj);
 
   // Weight them. Currently this is just removing duplicates.
-  printf("There are %d objectives\n", objectives->size());
+  std::println("There are {} objectives", objectives->size());
   WeightedObjectives weighted(*objectives);
-  printf("And %d example memories\n", memories.size());
+  std::println("And {} example memories", memories.size());
   weighted.WeightByExamples(memories);
-  printf("And %d unique objectives\n", weighted.Size());
+  std::println("And {} unique objectives", weighted.Size());
 
   weighted.SaveToFile(game + ".objectives");
 
@@ -137,11 +140,10 @@ static void MakeObjectives(const string &game,
   weighted.SaveLua(6, game + ".lua");
 }
 
-int main(int argc, char *argv[]) {
+auto main([[maybe_unused]] int argc, [[maybe_unused]] char *argv[]) -> int {
   map<string, string> config = Util::ReadFileToMap("config.txt");
   if (config.empty()) {
-    fprintf(stderr, "You need a file called config.txt; please "
-	    "take a look at the README.\n");
+    std::println(stderr, "You need a file called config.txt; please take a look at the README.");
     abort();
   }
 
@@ -164,7 +166,7 @@ int main(int argc, char *argv[]) {
   // So skip until there's a button press in the movie.
   size_t start = 0;
 
-  printf("Skipping frames without argument.\n");
+  std::println("Skipping frames without argument.");
   bool saw_input = false;
   while ((start < FASTFORWARD && !saw_input) && 
 	 start < movie.size()) {
@@ -175,21 +177,20 @@ int main(int argc, char *argv[]) {
 
   CHECK(start != movie.size());
 
-  printf("Skipped %ld frames until first keypress/ffwd.\n"
-	 "Playing %ld frames...\n", start, movie.size() - start);
+  std::println("Skipped {} frames until first keypress/ffwd.\nPlaying {} frames...", start, movie.size() - start);
 
   SaveMemory(&memories);
 
   {
     vector<uint8> save;
     Emulator::SaveUncompressed(&save);
-    printf("Save states are %ld bytes.\n", save.size());
+    std::println("Save states are {} bytes.", save.size());
   }
 
-  uint64 time_start = time(NULL);
-  for (int i = start; i < movie.size(); i++) {
+  uint64 time_start = time(nullptr);
+  for (size_t i = start; i < movie.size(); ++i) {
     if (i % 1000 == 0) {
-      printf("  [% 3.1f%%] %d/%ld\n", 
+      std::println("  [{: 3.1f}%] {}/{}", 
 	     ((100.0 * i) / movie.size()), i, movie.size());
       // exit(0);
     }
@@ -197,9 +198,9 @@ int main(int argc, char *argv[]) {
     inputs.push_back(movie[i]);
     SaveMemory(&memories);
   }
-  uint64 time_end = time(NULL);
+  uint64 time_end = time(nullptr);
 
-  printf("Recorded %ld memories in %ld sec.\n", 
+  std::println("Recorded {} memories in {} sec.", 
          memories.size(),
          time_end - time_start);
 

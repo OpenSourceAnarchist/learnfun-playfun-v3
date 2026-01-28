@@ -4,8 +4,7 @@
 
 #include <cstdlib>
 #include <map>
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstdio>
 #include <string>
 #include <vector>
 
@@ -21,159 +20,159 @@ using namespace std;
 
 #define UTIL_PI 3.141592653589f
 
-string itos(int i);
-int stoi(string s);
-string dtos(double d);
+auto itos(int i) -> string;
+auto stoi(string s) -> int;
+auto dtos(double d) -> string;
 
 struct Util {
 
-  static string ReadFile(const string &f);
-  static bool WriteFile(const string &f, const string &s);
+  static auto ReadFile(const string &f) -> string;
+  static auto WriteFile(const string &f, const string &s) -> bool;
 
   // Reads the lines in the file to the vector. Ignores all
   // carriage returns, including ones not followed by newline.
-  static vector<string> ReadFileToLines(const string &f);
+  static auto ReadFileToLines(const string &f) -> vector<string>;
 
-  static vector<string> SplitToLines(const string &s);
+  static auto SplitToLines(const string &s) -> vector<string>;
 
   // As above, but treat the first token on each line as a map
   // key. Ignores empty lines.
-  static map<string, string> ReadFileToMap(const string &f);
+  static auto ReadFileToMap(const string &f) -> map<string, string>;
 
-  static vector<unsigned char> ReadFileBytes(const string &f);
-  static bool WriteFileBytes(const string &f, const vector<unsigned char> &b);
+  static auto ReadFileBytes(const string &f) -> vector<unsigned char>;
+  static auto WriteFileBytes(const string &f, const vector<unsigned char> &b) -> bool;
 
-  static vector<string> ListFiles(const string &dir);
+  static auto ListFiles(const string &dir) -> vector<string>;
 
   // XXX terrible names
-  static int shout(int, string, unsigned int &);
-  static string shint(int b, int i);
+  static auto shout(int, string, unsigned int &) -> int;
+  static auto shint(int b, int i) -> string;
   /* converts int to byte string that represents it */
-  static string sizes(int i);
+  static auto sizes(int i) -> string;
 
   /* only read if the file begins with the magic string */
-  static bool hasmagic(string, const string &magic);
-  static string readfilemagic(string, const string &magic);
+  static auto hasmagic(string, const string &magic) -> bool;
+  static auto readfilemagic(string, const string &magic) -> string;
 
 
-  static string ptos(void *);
-  static unsigned int hash(string s);
+  static auto ptos(void *) -> string;
+  static auto hash(string s) -> unsigned int;
   /* give /home/tom/ of /home/tom/.bashrc */
-  static string pathof(string s);
-  static string fileof(string s);
+  static auto pathof(string s) -> string;
+  static auto fileof(string s) -> string;
 
-  static string ensureext(string f, string ext);
-  static string lcase(string in);
-  static string ucase(string in);
+  static auto ensureext(string f, string ext) -> string;
+  static auto lcase(string in) -> string;
+  static auto ucase(string in) -> string;
 
-  static bool ExistsFile(string);
+  static auto ExistsFile(string) -> bool;
 
   /* dirplus("/usr/local", "core") and
      dirplus("/usr/local/", core")  both give  "/usr/local/core"
      dirplus("/usr/local", "/etc/passwd")  gives "/etc/passwd"  */
-  static string dirplus(const string &dir, const string &file);
+  static auto dirplus(const string &dir, const string &file) -> string;
 
   /* spec is a character spec like "A-Z0-9`,."
      XXX document */
-  static bool matchspec(string spec, char c);
+  static auto matchspec(string spec, char c) -> bool;
 
   /* An ordering on strings that gives a more "natural" sort:
      Tutorial 1, ..., Tutorial 9, Tutorial 10, Tutorial 11, ...
      rather than
      Tutorial 1, Tutorial 10, Tutorial 11, ..., Tutorial 2, Tutorial 20, ...
   */
-  static int natural_compare(const string & l, const string & r);
+  static auto natural_compare(const string & l, const string & r) -> int;
 
   /* Same as above, but ignore 'the' at the beginning */
-  static int library_compare(const string & l, const string & r);
+  static auto library_compare(const string & l, const string & r) -> int;
 
   /* Is string s alphabetized under char k? */
-  static bool library_matches(char k, const string & s);
+  static auto library_matches(char k, const string & s) -> bool;
 
   /* open a new file. if it exists, return 0 */
-  static FILE * open_new(string s);
+  static auto open_new(string s) -> FILE *;
   /* 0 on failure */
-  static int changedir(string s);
-  static int random();
+  static auto changedir(string s) -> int;
+  static auto random() -> int;
   /* random in 0.0 .. 1.0 */
-  static float randfrac();
-  static int getpid();
+  static auto randfrac() -> float;
+  static auto getpid() -> int;
   /* anything ending with \n. ignores \r.
      modifies str. */
-  static string getline(string & str);
+  static auto getline(string & str) -> string;
   /* same, for open file. */
-  static string fgetline(FILE * f);
+  static auto fgetline(FILE * f) -> string;
 
   /* chop the first token (ignoring whitespace) off
      of line, modifying line. */
-  static string chop(string & line);
+  static auto chop(string & line) -> string;
 
   /* number of entries (not . or ..) in dir d */
-  static int dirsize(string d);
+  static auto dirsize(string d) -> int;
 
   /* mylevels/good_tricky   to
      mylevels               to
      . */
-  static string cdup(const string & dir);
+  static auto cdup(const string & dir) -> string;
 
   /* true iff big ends with small */
-  static bool endswith(string big_, string small_);
+  static auto endswith(string big_, string small_) -> bool;
   /* starts */
-  static bool startswith(string big_, string small_);
+  static auto startswith(string big_, string small_) -> bool;
 
   /* split the string up to the first
      occurrence of character c. The character
      is deleted from both the returned string and
      the line */
-  static string chopto(char c, string & line);
+  static auto chopto(char c, string & line) -> string;
 
   /* erase any whitespace up to the first
      non-whitespace char. */
-  static string losewhitel(const string & s);
+  static auto losewhitel(const string & s) -> string;
 
   /* try to remove the file. If it
      doesn't exist or is successfully
      removed, then return true. */
-  static bool remove(string f);
+  static auto remove(string f) -> bool;
 
   /* move a file from src to dst. Return
      true on success. */
-  static bool move(string src, string dst);
+  static auto move(string src, string dst) -> bool;
 
   /* make a copy by reading/writing */
-  static bool copy(string src, string dst);
+  static auto copy(string src, string dst) -> bool;
 
-  static string tempfile(string suffix);
+  static auto tempfile(string suffix) -> string;
 
   /* does this file exist and is it a directory? */
-  static bool isdir(string s);
+  static auto isdir(string s) -> bool;
 
   /* same as isdir */
-  static bool existsdir(string);
+  static auto existsdir(string) -> bool;
 
-  static bool makedir(const string &s);
+  static auto makedir(const string &s) -> bool;
 
   /* try to launch the url with the default browser;
      doesn't work on all platforms. true on success */
-  static bool launchurl(const string &);
+  static auto launchurl(const string &) -> bool;
 
   /* creates directories for f */
   static void createpathfor(string f);
 
   /* open, creating directories if necessary */
-  static FILE * fopenp(string f, string mode);
+  static auto fopenp(string f, string mode) -> FILE *;
 
   /* replace all occurrences of 'findme' with 'replacewith' in 'src' */
-  static string replace(string src, string findme, string replacewith);
+  static auto replace(string src, string findme, string replacewith) -> string;
 
   /* called minimum, maximum because some includes
      define these with macros, ugh */
-  static int minimum(int a, int b) {
+  static auto minimum(int a, int b) -> int {
     if (a < b) return a;
     else return b;
   }
 
-  static int maximum(int a, int b) {
+  static auto maximum(int a, int b) -> int {
     if (a > b) return a;
     else return b;
   }
@@ -182,17 +181,17 @@ struct Util {
 
 /* drawing lines with Bresenham's algorithm */
 struct line {
-  static line * create(int x0, int y0, int x1, int y1);
+  static auto create(int x0, int y0, int x1, int y1) -> line *;
   virtual void destroy() = 0;
-  virtual bool next(int & x, int & y) = 0;
-  virtual ~line() {};
+  virtual auto next(int & x, int & y) -> bool = 0;
+  virtual ~line() = default;
 };
 
 /* union find structure, n.b. union is a keyword */
 struct onionfind {
   int * arr;
 
-  int find(int);
+  auto find(int) -> int;
   void onion(int,int);
 
   onionfind(int);
@@ -210,28 +209,28 @@ struct bitbuffer {
      write that to output and return true.
      if an error occurs (such as going beyond the end of the string),
      then return false, perhaps destroying idx and output */
-  static bool nbits(string s, int n, int & idx, unsigned int & output);
+  static auto nbits(string s, int n, int & idx, unsigned int & output) -> bool;
 
   /* create a new empty bit buffer */
-  bitbuffer() : data(0), size(0), bits(0) { }
+   bitbuffer() = default;
 
   /* appends bits to the bit buffer */
   void writebits(int width, unsigned int thebits);
 
   /* get the contents of the buffer as a string,
      padded at the end if necessary */
-  string getstring();
+  auto getstring() -> string;
 
   /* give the number of bytes needed to store n bits */
-  static int ceil(int bits);
+  static auto ceil(int bits) -> int;
 
 
   ~bitbuffer() { free(data); }
 
   private:
-  unsigned char * data;
-  int size;
-  int bits;
+   unsigned char * data{nullptr};
+  int size{0};
+  int bits{0};
 };
 
 #endif

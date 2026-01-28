@@ -22,8 +22,9 @@
    
 */
 
-#include <stdlib.h>
-#include <stdio.h>
+#include <array>
+#include <cstdlib>
+#include <cstdio>
 #include <png.h>
 #include "pngsave.h"
 
@@ -31,35 +32,35 @@
    libpng (VC version > 6.0) */
 #define USE_SETJMP 0
 
-typedef unsigned char uint8;
+using uint8 = unsigned char;
 
-bool PngSave::SaveAlpha(const std::string &filename,
+auto PngSave::SaveAlpha(const std::string &filename,
                         int width, int height,
-                        const unsigned char *rgba) {
+                        const unsigned char *rgba) -> bool {
   FILE *fi = fopen(filename.c_str(), "wb");
   if (!fi) return false;
 
 
-  png_text text_ptr[4];
+  std::array<png_text, 4> text_ptr{};
 
   png_structp png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, 
-						NULL, NULL, NULL);
-  if (png_ptr == NULL) {
-    png_destroy_write_struct(&png_ptr, (png_infopp) NULL);
+						nullptr, nullptr, nullptr);
+  if (png_ptr == nullptr) {
+    png_destroy_write_struct(&png_ptr, (png_infopp) nullptr);
     fclose(fi);
     return false;
   }
 
   png_infop info_ptr = png_create_info_struct(png_ptr);
-  if (info_ptr == NULL) {
-    png_destroy_write_struct(&png_ptr, (png_infopp) NULL);
+  if (info_ptr == nullptr) {
+    png_destroy_write_struct(&png_ptr, (png_infopp) nullptr);
     fclose(fi);
     return false;
   }
 
   #if USE_SETJMP
   if (setjmp(png_jmpbuf(png_ptr))) {
-    png_destroy_write_struct(&png_ptr, (png_infopp) NULL);
+    png_destroy_write_struct(&png_ptr, (png_infopp) nullptr);
     fclose(fi);
     return false;
   }
@@ -97,16 +98,16 @@ bool PngSave::SaveAlpha(const std::string &filename,
   hdrcount++;
 
 
-  png_set_text(png_ptr, info_ptr, text_ptr, hdrcount);
+  png_set_text(png_ptr, info_ptr, text_ptr.data(), hdrcount);
 
   png_write_info(png_ptr, info_ptr);
 
 
 
   /* Save the picture: */
-  static int bpp = 4;
+  static constexpr int bpp = 4;
 
-  uint8 **png_rows =
+  auto **png_rows =
     (uint8 **)malloc(sizeof(uint8 *) * height);
 
   for (int y = 0; y < height; y++) {
@@ -128,7 +129,7 @@ bool PngSave::SaveAlpha(const std::string &filename,
   free(png_rows);
 
 
-  png_write_end(png_ptr, NULL);
+  png_write_end(png_ptr, nullptr);
 
   png_destroy_write_struct(&png_ptr, &info_ptr);
   fclose(fi);

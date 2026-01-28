@@ -11,9 +11,11 @@
 using namespace std;
 
 // Definitely would be useful to be able to write 24-bit or 32-bit waves..
-#define BITS_PER_SAMPLE 16
+enum {
+BITS_PER_SAMPLE = 16
+};
 
-typedef unsigned char uint8;
+using uint8 = unsigned char;
 
 namespace {
 struct Info {
@@ -36,14 +38,14 @@ struct Format {
 }
 
 template<class T>
-static Format GetFormat(const T &samples);
+static auto GetFormat(const T &samples) -> Format;
 
 template<>
-Format GetFormat(const vector<pair<float, float>> &samples) {
-  return Format(BITS_PER_SAMPLE, 2, samples.size());
+auto GetFormat(const vector<pair<float, float>> &samples) -> Format {
+  return {BITS_PER_SAMPLE, 2, static_cast<int>(samples.size())};
 }
 
-static Info GetInfo(const Format &f, int samplespersec) {
+static auto GetInfo(const Format &f, int samplespersec) -> Info {
   int databytes = (f.bps / 8) * f.nchannels * f.nframes;
   int blockalign = f.nchannels * (f.bps / 8);
 
@@ -58,7 +60,7 @@ static Info GetInfo(const Format &f, int samplespersec) {
   return info;
 }
 
-static int BytesNeeded(const Format &f, int samplerate) {
+static auto BytesNeeded(const Format &f, int samplerate) -> int {
   Info info = GetInfo(f, samplerate);
   return 
     /* RIFF + size + WAVE */
@@ -70,8 +72,8 @@ static int BytesNeeded(const Format &f, int samplerate) {
 }
 
 // Prevent dependency on util.
-static bool util_WriteFileBytes(const string &fn,
-				const vector<unsigned char> &bytes) {
+static auto util_WriteFileBytes(const string &fn,
+				const vector<unsigned char> &bytes) -> bool {
   FILE * f = fopen(fn.c_str(), "wb");
   if (!f) return false;
 
@@ -86,21 +88,21 @@ static bool util_WriteFileBytes(const string &fn,
 // Write the header, including the data chunk header.
 static void WriteHeader(const Format &format, int rate,
 			vector<uint8> *bytes) {
-  auto wb = [&bytes](uint8 b) { bytes->push_back(b); };
-  auto wid = [&wb](const char *s) {
+  auto wb = [&bytes](uint8 b) -> void { bytes->push_back(b); };
+  auto wid = [&wb](const char *s) -> void {
     wb(s[0]);
     wb(s[1]);
     wb(s[2]);
     wb(s[3]);
   };
   /* Write in LSB always. */
-  auto w32 = [&wb](unsigned int i) {
+  auto w32 = [&wb](unsigned int i) -> void {
     wb(i & 255);
     wb((i >> 8) & 255);
     wb((i >> 16) & 255);
     wb((i >> 24) & 255);
   };
-  auto w16 = [&wb](int i) {
+  auto w16 = [&wb](int i) -> void {
     wb(i & 255);
     wb((i >> 8) & 255);
   };
@@ -135,13 +137,12 @@ void WriteData(const T& samples, vector<uint8> *bytes);
 template<>
 void WriteData(const vector<pair<float, float>> &samples,
 	       vector<uint8> *bytes) {
-  auto w16 = [&bytes](int i) {
+  auto w16 = [&bytes](int i) -> void {
     bytes->push_back((uint8)(i & 255));
     bytes->push_back((uint8)((i >> 8) & 255));
   };
   
-  for (int i = 0; i < samples.size(); i++) {
-    const pair<float, float> &p = samples[i];
+  for (const auto & p : samples) {
     int left = p.first * 32767.0;
     int right = p.second * 32767.0;
     w16(left);
@@ -149,9 +150,9 @@ void WriteData(const vector<pair<float, float>> &samples,
   }
 }
 
-bool WaveSave::SaveStereo(const string &filename,
+auto WaveSave::SaveStereo(const string &filename,
 			  const vector<pair<float, float>> &samples,
-			  int samplerate) {
+			  int samplerate) -> bool {
   Format format = GetFormat(samples);
   vector<uint8> bytes;
   bytes.reserve(BytesNeeded(format, samplerate));

@@ -10,7 +10,7 @@
 // down to the start.
 template<class T>
 struct IntervalDefaultBisect {
-  T operator ()(const T &a, const T &b) {
+  auto operator ()(const T &a, const T &b) -> T {
     // XXX I think this may be wrong for negative numbers.
     return static_cast<T>((a + b) / 2);
   }
@@ -52,17 +52,17 @@ struct IntervalTree {
 
   // Return all the intervals that overlap the point, in arbitrary
   // order.
-  std::vector<Interval *> OverlappingPoint(Idx point) const {
+  auto OverlappingPoint(Idx point) const -> std::vector<Interval *> {
     return OverlappingPointIt(point, root);
   }
 
   // TODO: OverlappingInterval!
 
-  bool Empty() const { return root != nullptr; }
+  [[nodiscard]] auto Empty() const -> bool { return root != nullptr; }
 
   // Return the start index of the first interval, or Idx() if
   // the tree is empty.
-  Idx LowerBound() const {
+  auto LowerBound() const -> Idx {
     bool has_idx = false;
     Idx lowest = Idx();
     for (Node *t = root; t != nullptr; t = t->left) {
@@ -82,7 +82,7 @@ struct IntervalTree {
   // Return the end index of the interval that ends last (which is not
   // included in that interval, as usual) in the tree, or Idx() if
   // the tree is empty.
-  Idx UpperBound() const {
+  auto UpperBound() const -> Idx {
     bool has_idx = false;
     Idx highest = Idx();
     for (Node *t = root; t != nullptr; t = t->right) {
@@ -102,8 +102,8 @@ struct IntervalTree {
 
   // Returns a pointer to the interval, but it remains owned by
   // the tree.
-  Interval *Insert(Idx start, Idx end, T t) {
-    Interval *ret = new Interval(start, end, t);
+  auto Insert(Idx start, Idx end, T t) -> Interval * {
+    auto *ret = new Interval(start, end, t);
     Node **tree = &root;
     while ((*tree) != nullptr) {
       if (end < (*tree)->center) {
@@ -136,7 +136,7 @@ struct IntervalTree {
   }
 
  private:
-  friend class IntervalTreeJSON<Idx, T, Bisect>;
+  friend struct IntervalTreeJSON<Idx, T, Bisect>;
 
   struct Node {
     // Node in binary tree.
@@ -158,8 +158,8 @@ struct IntervalTree {
 
   // Recursive is most natural, but iterative is easier and
   // faster/safer in C++.
-  static std::vector<Interval *> OverlappingPointIt(Idx point,
-						    const Node *tree) {
+  static auto OverlappingPointIt(Idx point,
+                                 const Node *tree) -> std::vector<Interval *> {
     std::vector<Interval *> ret;
     while (tree != nullptr) {
       if (point < tree->center) {
@@ -204,7 +204,7 @@ struct IntervalTree {
  private:
   // TODO: Could implement these.
   IntervalTree(const IntervalTree &) = delete;
-  IntervalTree &operator =(const IntervalTree &) = delete;
+  auto operator =(const IntervalTree &) -> IntervalTree & = delete;
 };
 
 template<class Idx, class T, class B>

@@ -1,9 +1,11 @@
 
 #include <sys/stat.h>
+#include <array>
+#include <cstdio>
 #include <ctime>
 #include <cstring>
-#include <string.h>
 #include <algorithm>
+#include <utility>
 
 #include "util.h"
 
@@ -36,26 +38,26 @@
    /* getpid */
 #  include <sys/types.h>
    /* isalnum */
-#  include <ctype.h>
+#  include <cctype>
    /* directory stuff */
 #  include <dirent.h>
 #endif
 
 
-string itos(int i) {
-  char s[64];
-  sprintf(s, "%d", i);
-  return (string)s;
+auto itos(int i) -> string {
+  std::array<char, 64> s{};
+  std::snprintf(s.data(), s.size(), "%d", i);
+  return s.data();
 }
 
-string dtos(double d) {
-  char s[64];
-  sprintf(s, "%.2f", d);
-  return (string)s;
+auto dtos(double d) -> string {
+  std::array<char, 64> s{};
+  std::snprintf(s.data(), s.size(), "%.2f", d);
+  return s.data();
 }
 
 // TODO: I never tested this on posix.
-vector<string> Util::ListFiles(const string &s) {
+auto Util::ListFiles(const string &s) -> vector<string> {
   vector<string> v;
   DIR *dir = opendir(s.c_str());
   if (dir == nullptr) return {};
@@ -76,7 +78,7 @@ struct linereal : public line {
   int stepx, stepy;
   int frac;
 
-  virtual ~linereal() {}
+  ~linereal() override = default;
 
   linereal(int x0_, int y0_, int x1_, int y1_) :
     x0(x0_), y0(y0_), x1(x1_), y1(y1_) {
@@ -109,7 +111,7 @@ struct linereal : public line {
     }
   }
 
-  bool next(int & cx, int & cy) {
+  auto next(int & cx, int & cy) -> bool override {
     if (dx > dy) {
       if (x0 == x1) return false;
       else {
@@ -139,7 +141,7 @@ struct linereal : public line {
     }
   }
 
-  virtual void destroy() {
+  void destroy() override {
     delete this;
   }
 
@@ -147,27 +149,27 @@ struct linereal : public line {
 
 }  // namespace
 
-line * line::create(int a, int b, int c, int d) {
+auto line::create(int a, int b, int c, int d) -> line * {
   return new linereal(a, b, c, d);
 }
 
-bool Util::isdir(string f) {
+auto Util::isdir(string f) -> bool {
   struct stat st;
   return (!stat(f.c_str(), &st)) && (st.st_mode & S_IFDIR);
 }
 
-bool Util::ExistsFile(string s) {
+auto Util::ExistsFile(string s) -> bool {
   struct stat st;
 
   return !stat(s.c_str(), &st);
 }
 
-bool Util::existsdir(string d) {
+auto Util::existsdir(string d) -> bool {
   return isdir(d); /* (ExistsFile(d) && isdir(d.c_str())); */
 }
 
 /* XXX what mode? */
-bool Util::makedir(const string &d) {
+auto Util::makedir(const string &d) -> bool {
 # if defined(WIN32) || defined(__MINGW32__)
   return !mkdir(d.c_str());
 # else /* posix */
@@ -175,59 +177,68 @@ bool Util::makedir(const string &d) {
 # endif
 }
 
-string Util::ptos(void * p) {
-  char s[64];
-  sprintf(s, "%p", p);
-  return (string)s;
+auto Util::ptos(void * p) -> string {
+  std::array<char, 64> s{};
+  std::snprintf(s.data(), s.size(), "%p", p);
+  return s.data();
 }
 
-string Util::ReadFile(const string &s) {
-  if (Util::isdir(s)) return "";
-  if (s == "") return "";
+auto Util::ReadFile(const string &s) -> string {
+  if (Util::isdir(s) || s.empty()) return {};
 
   FILE * f = fopen(s.c_str(), "rb");
-  if (!f) return "";
-  fseek(f, 0, SEEK_END);
-  int size = ftell(f);
-  fseek(f, 0, SEEK_SET);
+  if (!f) return {};
+  if (fseek(f, 0, SEEK_END) != 0) {
+    fclose(f);
+    return {};
+  }
+  const long size_long = ftell(f);
+  if (size_long < 0) {
+    fclose(f);
+    return {};
+  }
+  const auto size = static_cast<size_t>(size_long);
+  if (fseek(f, 0, SEEK_SET) != 0) {
+    fclose(f);
+    return {};
+  }
 
-  char * ss = (char*)malloc(size);
-  fread(ss, 1, size, f);
-
+  string ret(size, '\0');
+  const size_t read = fread(ret.data(), 1, size, f);
   fclose(f);
 
-  string ret = string(ss, size);
-  free(ss);
+  if (read != size) {
+    ret.resize(read);
+  }
 
   return ret;
 }
 
-vector<string> Util::ReadFileToLines(const string &f) {
+auto Util::ReadFileToLines(const string &f) -> vector<string> {
   return SplitToLines(ReadFile(f));
 }
 
-vector<string> Util::SplitToLines(const string &s) {
+auto Util::SplitToLines(const string &s) -> vector<string> {
   vector<string> v;
   string line;
   // PERF don't need to do so much copying.
-  for (size_t i = 0; i < s.size(); i++) {
-    if (s[i] == '\r')
+  for (char i : s) {
+    if (i == '\r')
       continue;
-    else if (s[i] == '\n') {
+    else if (i == '\n') {
       v.push_back(line);
       line.clear();
     } else {
-      line += s[i];
+      line += i;
     }
   }
   return v;
 }
 
-map<string, string> Util::ReadFileToMap(const string &f) {
+auto Util::ReadFileToMap(const string &f) -> map<string, string> {
   map<string, string> m;
   vector<string> lines = ReadFileToLines(f);
-  for (int i = 0; i < lines.size(); i++) {
-    string rest = lines[i];
+  for (auto rest : lines) {
     string tok = chop(rest);
     rest = losewhitel(rest);
     m.insert(make_pair(tok, rest));
@@ -236,18 +247,18 @@ map<string, string> Util::ReadFileToMap(const string &f) {
 }
 
 // PERF memcpy
-vector<unsigned char> Util::ReadFileBytes(const string &f) {
+auto Util::ReadFileBytes(const string &f) -> vector<unsigned char> {
   string s = ReadFile(f);
   vector<unsigned char> bytes;
   bytes.reserve(s.size());
-  for (int i = 0; i < s.size(); i++) {
-    bytes.push_back((unsigned char)s[i]);
+  for (char i : s) {
+    bytes.push_back((unsigned char)i);
   }
   return bytes;
 }
 
 
-static bool hasmagicf(FILE * f, const string & mag) {
+static auto hasmagicf(FILE * f, const string & mag) -> bool {
   char * hdr = (char*)malloc(mag.length());
   if (!hdr) return false;
 
@@ -268,7 +279,7 @@ static bool hasmagicf(FILE * f, const string & mag) {
   return true;
 }
 
-bool Util::hasmagic(string s, const string &mag) {
+auto Util::hasmagic(string s, const string &mag) -> bool {
   FILE * f = fopen(s.c_str(), "rb");
   if (!f) return false;
 
@@ -278,9 +289,8 @@ bool Util::hasmagic(string s, const string &mag) {
   return hm;
 }
 
-string Util::readfilemagic(string s, const string &mag) {
-  if (isdir(s)) return "";
-  if (s == "") return "";
+auto Util::readfilemagic(string s, const string &mag) -> string {
+  if (isdir(s) || s.empty()) return {};
 
   // printf("opened %s\n", s.c_str());
 
@@ -299,22 +309,33 @@ string Util::readfilemagic(string s, const string &mag) {
 
   /* ok, now just read file */
 
-  fseek(f, 0, SEEK_END);
-  int size = ftell(f);
-  fseek(f, 0, SEEK_SET);
+  if (fseek(f, 0, SEEK_END) != 0) {
+    fclose(f);
+    return {};
+  }
+  const long size_long = ftell(f);
+  if (size_long < 0) {
+    fclose(f);
+    return {};
+  }
+  const auto size = static_cast<size_t>(size_long);
+  if (fseek(f, 0, SEEK_SET) != 0) {
+    fclose(f);
+    return {};
+  }
 
-  char * ss = (char*)malloc(size);
-  fread(ss, 1, size, f);
-
+  string ret(size, '\0');
+  const size_t read = fread(ret.data(), 1, size, f);
   fclose(f);
 
-  string ret = string(ss, size);
-  free(ss);
+  if (read != size) {
+    ret.resize(read);
+  }
 
   return ret;
 }
 
-bool Util::WriteFile(const string &fn, const string &s) {
+auto Util::WriteFile(const string &fn, const string &s) -> bool {
 
   FILE * f = fopen(fn.c_str(), "wb");
   if (!f) return false;
@@ -327,8 +348,8 @@ bool Util::WriteFile(const string &fn, const string &s) {
   return true;
 }
 
-bool Util::WriteFileBytes(const string &fn,
-			  const vector<unsigned char> &bytes) {
+auto Util::WriteFileBytes(const string &fn,
+			  const vector<unsigned char> &bytes) -> bool {
   FILE * f = fopen(fn.c_str(), "wb");
   if (!f) return false;
 
@@ -340,7 +361,7 @@ bool Util::WriteFileBytes(const string &fn,
   return true;
 }
 
-string Util::sizes(int i) {
+auto Util::sizes(int i) -> string {
   string s = "    ";
   s[0] = 255&(i >> 24);
   s[1] = 255&(i >> 16);
@@ -353,14 +374,14 @@ string Util::sizes(int i) {
 
 /* represent int i (as i mod (2^(b/8)))
    using only b bytes */
-string Util::shint(int b, int i) {
+auto Util::shint(int b, int i) -> string {
   return sizes(i).substr(4-b, b);
 }
 
 /* inverse of shint. does not check that
    there is enough room in s to read b bytes
    from idx ... */
-int Util::shout(int b, string s, unsigned int & idx) {
+auto Util::shout(int b, string s, unsigned int & idx) -> int {
   int r = 0;
   while (b--) {
     r = ((unsigned char)s[idx++]) + (r<<8);
@@ -368,7 +389,7 @@ int Util::shout(int b, string s, unsigned int & idx) {
   return r;
 }
 
-unsigned int Util::hash(string s) {
+auto Util::hash(string s) -> unsigned int {
   unsigned int h = 0x714FA5DD;
   for (unsigned int i = 0; i < s.length(); i ++) {
     h = (h << 11) | (h >> (32 - 11));
@@ -378,7 +399,7 @@ unsigned int Util::hash(string s) {
   return h;
 }
 
-string Util::lcase(string in) {
+auto Util::lcase(string in) -> string {
   string out;
   for (unsigned int i = 0; i < in.length(); i++) {
     if (in[i] >= 'A' &&
@@ -389,7 +410,7 @@ string Util::lcase(string in) {
   return out;
 }
 
-string Util::ucase(string in) {
+auto Util::ucase(string in) -> string {
   string out;
   for (unsigned int i = 0; i < in.length(); i++) {
     if (in[i] >= 'a' &&
@@ -400,7 +421,7 @@ string Util::ucase(string in) {
   return out;
 }
 
-string Util::fileof(string s) {
+auto Util::fileof(string s) -> string {
   for (long long int i = s.length() - 1; i >= 0; i --) {
     if (s[i] == DIRSEPC) {
       return s.substr(i + 1, s.length() - (i + 1));
@@ -409,7 +430,7 @@ string Util::fileof(string s) {
   return s;
 }
 
-string Util::pathof(string s) {
+auto Util::pathof(string s) -> string {
   if (s == "") return ".";
   for (long long int i = s.length() - 1; i >= 0; i --) {
     if (s[i] == DIRSEPC) {
@@ -420,7 +441,7 @@ string Util::pathof(string s) {
 }
 
 /* XX can use endswith below */
-string Util::ensureext(string f, string ext) {
+auto Util::ensureext(string f, string ext) -> string {
   if (f.length() < ext.length())
     return f + ext;
   else {
@@ -431,38 +452,38 @@ string Util::ensureext(string f, string ext) {
   }
 }
 
-bool Util::endswith (string big, string small_) {
+auto Util::endswith (string big, string small_) -> bool {
   if (small_.length() > big.length()) return false;
   return big.substr(big.length() - small_.length(),
 		    small_.length()) == small_;
 }
 
-bool Util::startswith (string big, string small_) {
+auto Util::startswith (string big, string small_) -> bool {
   if (small_.length() > big.length()) return false;
-  return big.substr(0, small_.length()) == small_;
+  return big.starts_with(small_);
 }
 
-int Util::changedir(string s) {
+auto Util::changedir(string s) -> int {
   return !chdir(s.c_str());
 }
 
-int Util::getpid() {
+auto Util::getpid() -> int {
   return ::getpid();
 }
 
-int stoi(string s) {
+auto stoi(string s) -> int {
   return atoi(s.c_str());
 }
 
 /* XXX race. should use creat
    with O_EXCL on unix, at least. */
-FILE * Util::open_new(string fname) {
+auto Util::open_new(string fname) -> FILE * {
   if (!ExistsFile(fname))
     return fopen(fname.c_str(), "wb+");
-  else return 0;
+  else return nullptr;
 }
 
-string Util::getline(string & chunk) {
+auto Util::getline(string & chunk) -> string {
   string ret;
   for (unsigned int i = 0; i < chunk.length(); i ++) {
     if (chunk[i] == '\r') continue;
@@ -477,7 +498,7 @@ string Util::getline(string & chunk) {
 }
 
 /* PERF */
-string Util::fgetline(FILE * f) {
+auto Util::fgetline(FILE * f) -> string {
   string out;
   int c;
   while ( (c = fgetc(f)), ((c != EOF) && (c != '\n')) ) {
@@ -492,7 +513,7 @@ string Util::fgetline(FILE * f) {
 /* PERF use substr instead of accumulating: this is used
    frequently in the net stuff */
 /* return first token in line, removing it from 'line' */
-string Util::chop(string & line) {
+auto Util::chop(string & line) -> string {
   for (unsigned int i = 0; i < line.length(); i ++) {
     if (line[i] != ' ') {
       string acc;
@@ -512,7 +533,7 @@ string Util::chop(string & line) {
 }
 
 /* PERF same */
-string Util::chopto(char c, string & line) {
+auto Util::chopto(char c, string & line) -> string {
   string acc;
   for (unsigned int i = 0; i < line.length(); i ++) {
     if (line[i] != c) {
@@ -533,7 +554,7 @@ string Util::chopto(char c, string & line) {
   return acc;
 }
 
-string Util::losewhitel(const string & s) {
+auto Util::losewhitel(const string & s) -> string {
   for (unsigned int i = 0; i < s.length(); i ++) {
     switch(s[i]) {
     case ' ':
@@ -550,22 +571,17 @@ string Util::losewhitel(const string & s) {
   return "";
 }
 
-string Util::tempfile(string suffix) {
+auto Util::tempfile(string suffix) -> string {
   static int tries = 0;
 
-  char * fname = new char[suffix.length() + 128];
-
+  string fname;
   do {
-    sprintf(fname,
-	    "%d_%d_%d%s",
-	    tries, getpid(), random(),
-	    suffix.c_str());
-    tries++;
+    fname = to_string(tries) + "_" + to_string(getpid()) + "_" +
+            to_string(random()) + suffix;
+    ++tries;
   } while (ExistsFile(fname));
 
-  string ret = fname;
-  delete fname;
-  return ret;
+  return fname;
 }
 
 /* break up the strings into tokens. A token is either
@@ -589,7 +605,7 @@ string Util::tempfile(string suffix) {
    n.b. it is easy to overflow here, so perhaps comparing
    as we go is better
 */
-int Util::natural_compare(const string & l, const string & r) {
+auto Util::natural_compare(const string & l, const string & r) -> int {
 
   for (int caseless = 0; caseless < 2; caseless ++) {
 
@@ -669,7 +685,7 @@ int Util::natural_compare(const string & l, const string & r) {
 
 /* same as above, but ignore "the" at beginning */
 /* XXX also ignore symbols ie ... at the beginning */
-int Util::library_compare(const string & l, const string & r) {
+auto Util::library_compare(const string & l, const string & r) -> int {
 
   /* XXX currently IGNOREs symbols, which could give incorrect
      results for strings that are equal other than their
@@ -703,7 +719,7 @@ int Util::library_compare(const string & l, const string & r) {
 }
 
 /* XXX impossible to specify a spec for just ^ */
-bool Util::matchspec(string spec, char c) {
+auto Util::matchspec(string spec, char c) -> bool {
   if (!spec.length()) return false;
   else if (spec[0] == '^')
   return !matchspec(spec.substr(1, spec.length() - 1), c);
@@ -728,7 +744,7 @@ bool Util::matchspec(string spec, char c) {
 }
 
 
-bool Util::library_matches(char k, const string & s) {
+auto Util::library_matches(char k, const string & s) -> bool {
   /* skip symbolic */
   unsigned int idx = 0;
   while (idx < s.length() && (!isalnum(s[idx]))) idx++;
@@ -746,7 +762,7 @@ bool Util::library_matches(char k, const string & s) {
    An executable can't remove itself in
    Windows 98, though.
 */
-bool Util::remove(string f) {
+auto Util::remove(string f) -> bool {
   if (!ExistsFile(f.c_str())) return true;
   else {
 # ifdef WIN32
@@ -774,7 +790,7 @@ bool Util::remove(string f) {
 
 }
 
-bool Util::move(string src, string dst) {
+auto Util::move(string src, string dst) -> bool {
 # if defined(WIN32) || defined(__MINGW32__)
   if (0 == rename(src.c_str(), dst.c_str()))
     return true;
@@ -798,32 +814,32 @@ bool Util::move(string src, string dst) {
 }
 
 
-bool Util::copy(string src, string dst) {
+auto Util::copy(string src, string dst) -> bool {
   FILE * s = fopen(src.c_str(), "rb");
   if (!s) return false;
   FILE * d = fopen(dst.c_str(), "wb+");
   if (!d) { fclose(s); return false; }
 
-  char buf[256];
-  int x = 0;
+  std::array<char, 256> buf{};
+  size_t x = 0;
   do {
     /* XXX doesn't distinguish error from EOF, but... */
-    x = (int)fread(buf, 1, 256, s);
-    if (x) {
-      if ((signed)fwrite(buf, 1, x, d) < x) {
-	fclose(s);
-	fclose(d);
-	return false;
+    x = fread(buf.data(), 1, buf.size(), s);
+    if (x != 0U) {
+      if (fwrite(buf.data(), 1, x, d) < x) {
+        fclose(s);
+        fclose(d);
+        return false;
       }
     }
-  } while (x == 256);
+  } while (x == buf.size());
 
   fclose(s);
   fclose(d);
   return true;
 }
 
-string Util::dirplus(const string &dir_, const string &file) {
+auto Util::dirplus(const string &dir_, const string &file) -> string {
   if (dir_.empty()) return file;
   if (!file.empty() && file[0] == DIRSEPC) return file;
   string dir = dir_;
@@ -832,13 +848,14 @@ string Util::dirplus(const string &dir_, const string &file) {
   return dir + file;
 }
 
-string Util::cdup(const string & dir) {
+auto Util::cdup(const string & dir) -> string {
   /* XXX right second argument to rfind? I want to find the last / */
-  size_t idx = dir.rfind(DIRSEP, dir.length() - 1);
-  if (idx != (signed)string::npos) {
-    if (idx) return dir.substr(0, idx);
-    else return ".";
-  } else return ".";
+  const size_t idx = dir.rfind(DIRSEP, dir.length() - 1);
+  if (idx != string::npos) {
+    if (idx != 0U) return dir.substr(0, idx);
+    return ".";
+  }
+  return ".";
 }
 
 void Util::createpathfor (string f) {
@@ -853,12 +870,12 @@ void Util::createpathfor (string f) {
   }
 }
 
-FILE * Util::fopenp(string f, string m) {
+auto Util::fopenp(string f, string m) -> FILE * {
   createpathfor (f);
   return fopen(f.c_str(), m.c_str());
 }
 
-string Util::replace(string src, string findme, string rep) {
+auto Util::replace(string src, string findme, string rep) -> string {
   long long int idx = src.length() - 1;
 
   if (findme.length() < 1) return src;
@@ -883,7 +900,7 @@ void onionfind::onion(int a, int b) {
   if (find(a) != find(b)) arr[find(a)] = b;
 }
 
-int onionfind::find(int a) {
+auto onionfind::find(int a) -> int {
   if (arr[a] == -1) return a;
   else return arr[a] = find(arr[a]);
 }
@@ -893,12 +910,12 @@ onionfind::onionfind(int size) {
   for (int i = 0; i < size; i++) arr[i] = -1;
 }
 
-int bitbuffer::ceil(int bits) {
+auto bitbuffer::ceil(int bits) -> int {
   return (bits >> 3) + !!(bits & 7);
 }
 
 
-bool bitbuffer::nbits(string s, int n, int & idx, unsigned int & out) {
+auto bitbuffer::nbits(string s, int n, int & idx, unsigned int & out) -> bool {
 # define NTHBIT(x) !! (s[(x) >> 3] & (1 << (7 - ((x) & 7))))
 
   out = 0;
@@ -915,7 +932,7 @@ bool bitbuffer::nbits(string s, int n, int & idx, unsigned int & out) {
 # undef NTHBIT
 }
 
-string bitbuffer::getstring() {
+auto bitbuffer::getstring() -> string {
   int n = ceil(bits);
   if (data) return string((char *)data, n);
   else return "";
@@ -933,7 +950,7 @@ void bitbuffer::writebits(int n, unsigned int b) {
     /* allocate more */
     if (bytes_needed > size) {
       int nsize = (size + 1) * 2;
-      unsigned char * tmp =
+      auto * tmp =
 	(unsigned char *) malloc(nsize * sizeof (unsigned char));
       if (!tmp) abort();
       memset(tmp, 0, nsize);
@@ -959,7 +976,7 @@ void bitbuffer::writebits(int n, unsigned int b) {
 #endif
 
 /* return true on success */
-bool Util::launchurl(const string & url) {
+auto Util::launchurl([[maybe_unused]] const string & url) -> bool {
   /* XXX ??? */
 #if 0
 #ifdef OSX
@@ -986,7 +1003,7 @@ bool Util::launchurl(const string & url) {
 }
 
 
-float Util::randfrac() {
+auto Util::randfrac() -> float {
   return random() / (float)RAND_MAX;
 }
 
@@ -997,7 +1014,7 @@ float Util::randfrac() {
    web sequence numbers are chosen randomly, now, so we
    actually do.
 */
-int Util::random() {
+auto Util::random() -> int {
 # if defined(WIN32) || defined(__MINGW32__)
   return ::rand();
 # else
@@ -1012,7 +1029,7 @@ struct RandomSeed {
 # if defined(WIN32) || defined(__MINGW32__)
     srand((int)time(NULL) ^ getpid());
 # else
-    srandom(time(0) ^ getpid());
+    srandom(time(nullptr) ^ getpid());
 # endif
     /* run it a bit */
     for (int i = 0; i < 256; i ++)
@@ -1020,5 +1037,5 @@ struct RandomSeed {
   }
 };
 
-RandomSeed randomseed__unused;
+[[maybe_unused]] RandomSeed randomseed__unused;
 }  // namespace

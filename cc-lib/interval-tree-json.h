@@ -2,10 +2,11 @@
 #ifndef __INTERVAL_TREE_JSON
 #define __INTERVAL_TREE_JSON
 
+#include <functional>
 #include <map>
+#include <string>
 #include <utility>
 #include <vector>
-#include <functional>
 
 #include "interval-tree.h"
 
@@ -28,7 +29,7 @@ struct IntervalTreeJSON {
   // (not actual JSON). The template arguments are callable (e.g.
   // lambdas or std::function), computing a JS expression string from
   // an Idx and the T type, respectively.
-  string ToJSON() const {
+  [[nodiscard]] auto ToJSON() const -> string {
     std::vector<string> decls;
     string s = ToJSONRec(&decls, 0, tree.root);
     if (decls.size() == 0) {
@@ -45,14 +46,14 @@ struct IntervalTreeJSON {
     }
   }
 
-  string ToJSONRec(std::vector<string> *decls,
+  auto ToJSONRec(std::vector<string> *decls,
 		   int depth,
-		   const Node *n) const {
+		   const Node *n) const -> string {
     if (n == nullptr) return "null";
     string ret = (string)"{c:" + idxjs(n->center);
 
     auto Subtree = [this, &ret, decls, depth](const string &field,
-					      const Node *t) {
+					      const Node *t) -> auto {
       if (t != nullptr) {
 	ret += (string)"," + field + ":";
 	ret += ToJSONRec(decls, depth + 1, t);
@@ -64,7 +65,7 @@ struct IntervalTreeJSON {
 
     auto Intervals =
       [this, &ret](const string &field,
-		   const std::multimap<Idx, Interval *> &mmap) {
+		   const std::multimap<Idx, Interval *> &mmap) -> auto {
       ret += (string)"," + field + ":[";
       bool first = true;
       for (const auto &p : mmap) {
@@ -92,8 +93,8 @@ struct IntervalTreeJSON {
     }
   }
 
-  string ToCompactJSON(const std::function<Idx(const Idx &l,
-					       const Idx &r)> minus) const {
+  auto ToCompactJSON(const std::function<Idx(const Idx &l,
+					       const Idx &r)> minus) const -> string {
     std::vector<string> decls;
     string s = ToCompactJSONRec(&decls, minus, 0, tree.root);
     if (decls.size() == 0) {
@@ -114,11 +115,11 @@ struct IntervalTreeJSON {
   // where by_begin is an array of two-element arrays [start, end],
   // sorted by start position. The 't' data are not represented at
   // all.
-  string ToCompactJSONRec(std::vector<string> *decls, 
+  auto ToCompactJSONRec(std::vector<string> *decls, 
 			  const std::function<Idx(const Idx &l,
 						  const Idx &r)> minus,
 			  int depth,
-			  const Node *n) const {
+			  const Node *n) const -> string {
     if (n == nullptr) return "null";
     string ret = "[";
     ret += ToCompactJSONRec(decls, minus, depth + 1, n->left);

@@ -19,6 +19,9 @@
 #include "../cc-lib/city/city.h"
 
 // XXX move to header, enable _debug mode.
+#ifdef DCHECK
+#undef DCHECK
+#endif
 #define DCHECK(x) do {} while(0)
 
 // Joystick data. I think used for both controller 0 and 1. Part of
@@ -61,7 +64,9 @@ struct StateCache {
   }
 
   void Resize(uint64 ll, uint64 ss) {
-    printf("Resize cache %d %d\n", ll, ss);
+    printf("Resize cache %llu %llu\n",
+           static_cast<unsigned long long>(ll),
+           static_cast<unsigned long long>(ss));
     // Recover memory.
     for (Hash::iterator it = hashtable.begin(); 
 	 it != hashtable.end(); /* in loop */) {

@@ -1,4 +1,4 @@
-AM_CXXFLAGS = -pthread $(PROTOBUF_CFLAGS) $(SDL_CFLAGS) $(SDL_NET_CFLAGS) \
+AM_CXXFLAGS = -pthread -Wno-write-strings $(PROTOBUF_CFLAGS) $(SDL_CFLAGS) $(SDL_NET_CFLAGS) \
               $(ZLIB_CFLAGS) $(LIBPNG_CFLAGS) \
               -DMARIONET=1 -I../cc-lib -I../cc-lib/city -DPSS_STYLE=1 \
               -DDUMMY_UI -DNOWINSTUFF -DHAVE_ASPRINTF -DHAVE_ALLOCA -Ifceu \

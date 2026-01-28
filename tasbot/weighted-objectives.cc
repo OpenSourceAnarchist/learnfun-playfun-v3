@@ -414,8 +414,10 @@ void WeightedObjectives::SaveSVG(const vector< vector<uint8> > &memories,
   out += TextSVG::Footer();
   Util::WriteFile(filename, out);
 
-  printf("Wrote %lld objectives, skipping %lld points, to %s\n", 
-	 weighted.size(), skipped, filename.c_str());
+  printf("Wrote %zu objectives, skipping %llu points, to %s\n",
+   weighted.size(),
+   static_cast<unsigned long long>(skipped),
+   filename.c_str());
 }
 
 // My apologies. I don't know lua and it's the night before a demo!

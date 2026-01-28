@@ -1,18 +1,19 @@
 /* TODO DOCS.
  */
 
-#include <vector>
-#include <string>
-#include <set>
 #include <cmath>
+#include <memory>
+#include <set>
+#include <string>
+#include <vector>
 
 #include <unistd.h>
 #include <sys/types.h>
-#include <string.h>
-#include <errno.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <time.h>
+#include <cerrno>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <ctime>
 
 #include "tasbot.h"
 
@@ -82,11 +83,19 @@ struct ScopeFun {
     movie = SimpleFM2::ReadInputs(moviename);
     
     if (sf < 0) sf = 0;
-    if (!mf) mf = movie.size();
-    startframe = sf;
-    maxframe = mf;
+    startframe = static_cast<size_t>(sf);
+    if (mf == 0) {
+      maxframe = movie.size();
+    } else if (mf < 0) {
+      maxframe = 0;
+    } else {
+      maxframe = static_cast<size_t>(mf);
+    }
 
-    rgba4x = (uint8 *) malloc(sizeof (uint8) * (width * 4) * (height * 4) * 4);
+    const size_t width4x = static_cast<size_t>(width) * 4;
+    const size_t height4x = static_cast<size_t>(height) * 4;
+    const size_t rgba4x_bytes = width4x * height4x * 4;
+    rgba4x = std::make_unique<uint8[]>(rgba4x_bytes);
     CHECK(rgba4x);
 
     ClearBuffer();
@@ -123,7 +132,7 @@ struct ScopeFun {
   };
   
   struct ObjFact {
-    ObjFact() : obj(NULL), weight(0.0), order(SAME) {}
+    ObjFact() : obj(nullptr), weight(0.0), order(SAME) {}
     const vector<int> *obj;
     double weight;
     Order order;
@@ -147,7 +156,7 @@ struct ScopeFun {
     facts->clear();
     facts->resize(2048);
 
-    for (int o = 0; o < objs.size(); o++) {
+    for (size_t o = 0; o < objs.size(); ++o) {
       const vector<int> &obj = *objs[o].first;
       double weight = objs[o].second;
       *total_weight += weight;
@@ -155,7 +164,7 @@ struct ScopeFun {
       (*objfacts)[o].weight = weight;
 
       Order order = SAME;
-      for (int i = 0; i < obj.size(); i++) {
+      for (size_t i = 0; i < obj.size(); ++i) {
 	int p = obj[i];
 	if (mem1[p] > mem2[p]) {
 	  (*facts)[p].downs += weight;
@@ -171,7 +180,7 @@ struct ScopeFun {
 
       (*objfacts)[o].order = order;
       
-      for (int i = 0; i < obj.size(); i++) {
+      for (size_t i = 0; i < obj.size(); ++i) {
 	int p = obj[i];
 	// TODO record facts about the objective too.
 	switch (order) {
@@ -188,7 +197,7 @@ struct ScopeFun {
   // XXX This function is used inconsistently; either remove
   // the alpha param or use it...
   inline void WritePixel(int x, int y,
-			 uint8 r, uint8 g, uint8 b, uint8 a) {
+			 uint8 r, uint8 g, uint8 b, [[maybe_unused]] uint8 a) {
     DCHECK(x >= 0);
     DCHECK(y >= 0);
     DCHECK(x < width);
@@ -281,7 +290,7 @@ struct ScopeFun {
 
   // Blit(256, 256, 0, 0, 256, 200, 0, 50, screens[i]);
   // Copies alpha component from src.
-  void Blit(int srcwidth, int srcheight,
+  void Blit(int srcwidth, [[maybe_unused]] int srcheight,
 	    int rectx, int recty,
 	    int rectw, int recth,
 	    int dstx, int dsty,
@@ -303,7 +312,7 @@ struct ScopeFun {
   }
 
   // Blends using source alpha, assuming dst alpha is 1.
-  void BlitAlpha(int srcwidth, int srcheight,
+  void BlitAlpha(int srcwidth, [[maybe_unused]] int srcheight,
 		 int rectx, int recty,
 		 int rectw, int recth,
 		 int dstx, int dsty,
@@ -352,7 +361,7 @@ struct ScopeFun {
   Score GetScore(const vector<ObjFact> &objfacts) {
     double total = 0.0;
     double gtotal = 0.0, rtotal = 0.0;
-    for (int i = 0; i < objfacts.size(); i++) {
+    for (size_t i = 0; i < objfacts.size(); ++i) {
       total += objfacts[i].weight;
       switch (objfacts[i].order) {
       case UP: gtotal += objfacts[i].weight; break;
@@ -458,7 +467,7 @@ struct ScopeFun {
       const vector<uint8> &mem = memories[idx];
       vector<double> vfs = objectives->GetNormalizedValues(mem);
       CHECK(vfs.size() == colors.size());
-      for (int i = 0; i < vfs.size(); i++) {
+      for (size_t i = 0; i < vfs.size(); ++i) {
 	CHECK(0.0 <= vfs[i]);
 	CHECK(vfs[i] <= 1.0);
 
@@ -558,7 +567,7 @@ struct ScopeFun {
     static const int PXSIZE = 4;
     const int width4x = width * PXSIZE;
     const int height4x = height * PXSIZE;
-    CHECK(PngSave::SaveAlpha(filename, width4x, height4x, rgba4x));
+    CHECK(PngSave::SaveAlpha(filename, width4x, height4x, rgba4x.get()));
   }
 
   void DrawController(int x, int y, uint8 input) {
@@ -600,12 +609,16 @@ struct ScopeFun {
 			      int width) {
     Score score = GetScore(objfacts);
     WriteScoreTo(x, y, score, 6);
-    width -= 7;
-    for (int i = 0; i < width; i++) {
-      if (i >= history->size()) break;
-      
-      const int fromback = (history->size() - 1) - i;
-      WriteScoreTo(x + 7 + i, y, history->at(fromback), 1);
+    const int remaining_width = width - 7;
+    const size_t width_limit = remaining_width > 0
+      ? static_cast<size_t>(remaining_width)
+      : 0;
+    for (size_t i = 0; i < width_limit; ++i) {
+	if (i >= history->size()) break;
+
+	const size_t fromback = (history->size() - 1) - i;
+	WriteScoreTo(x + 7 + static_cast<int>(i), y,
+		     history->at(fromback), 1);
     }
     history->push_back(score);
   }
@@ -618,10 +631,10 @@ struct ScopeFun {
     vector< vector<uint8> > screens;
 
     // XXX inline, rename
-    const int STARTFRAMES = startframe;
-    const int MAXFRAMES = maxframe;
+    const size_t STARTFRAMES = startframe;
+    const size_t MAXFRAMES = maxframe;
 
-    const string wavename = StringPrintf("%s/%s-%d-%d.wav",
+    const string wavename = StringPrintf("%s/%s-%zu-%zu.wav",
 					 dir.c_str(),
 					 game.c_str(),
 					 STARTFRAMES, MAXFRAMES);
@@ -630,14 +643,15 @@ struct ScopeFun {
     // Come up with colors.
     vector<uint32> colors;
     ArcFour rc("scopefun");
-    for (int i = 0; i < objectives->Size(); i++) {
+    for (size_t i = 0; i < objectives->Size(); ++i) {
       colors.push_back(RandomBrightColor(&rc));
     }
 
     // True once an input has been nonempty.
     bool started = false;
 
-    for (int i = 0; i < movie.size() && i < MAXFRAMES + 2; i++) {
+    const size_t max_frame_limit = MAXFRAMES + 2;
+    for (size_t i = 0; i < movie.size() && i < max_frame_limit; ++i) {
       vector<uint8> mem, screen;
       Emulator::GetMemory(&mem);
       memories.push_back(mem);
@@ -645,7 +659,7 @@ struct ScopeFun {
       // Values.
       if (started) objectives->Observe(mem);
 
-      if (i % 100 == 0) fprintf(stderr, "%d.\n", i);
+      if (i % 100 == 0) fprintf(stderr, "%zu.\n", i);
       Emulator::StepFull(movie[i]);
       // Once we've pressed a button, we've started.
       if (movie[i]) started = true;
@@ -675,7 +689,7 @@ struct ScopeFun {
     uint64 starttime = time(NULL);
 
     vector<Score> comp_one, comp_ten, comp_hundred;
-    for (int i = STARTFRAMES; i < movie.size() && i < MAXFRAMES; i++) {
+    for (size_t i = STARTFRAMES; i < movie.size() && i < MAXFRAMES; ++i) {
       ClearBuffer();
 
       // Blit(256, 256, 0, 0, 128, 64, 0, 128, screens[i]);
@@ -721,41 +735,47 @@ struct ScopeFun {
 	MakeMemFacts(memories[i - 99], memories[i + 1], 
 		     &facts, &objfacts, &total_weight);
 	WriteRAMTo(257, 66, memories[i + 1], facts, total_weight);
-	Score score = GetScore(objfacts);
 	WriteScoreAndHistoryTo(257 + 65, 66, objfacts, &comp_hundred, 156);
       }
 
       CopyTo4x();
 
       // WriteNormalizedTo(257, 99, memories, colors, i, 222, 156);
-      WriteNormalizedTo(257 * 4, 99 * 4, memories, colors, i, 222 * 4, 156 * 4,
-			width * 4, height * 4, rgba4x);
+      WriteNormalizedTo(257 * 4, 99 * 4, memories, colors,
+			static_cast<int>(i), 222 * 4, 156 * 4,
+			width * 4, height * 4, rgba4x.get());
 
      
-      const string filename = StringPrintf("%s/%s-%d.png",
+      const string filename = StringPrintf("%s/%s-%zu.png",
 					   dir.c_str(), game.c_str(), i);
 
       Save4x(filename);
-      int totalframes = min((int)movie.size(), MAXFRAMES) - STARTFRAMES;
-      double seconds_elapsed = time(NULL) - starttime;
-      double fps = (i - STARTFRAMES) / seconds_elapsed;
-      double seconds_left = (totalframes - i) / fps;
+      const size_t totalframes =
+    	std::min(movie.size(), MAXFRAMES) - STARTFRAMES;
+      const double seconds_elapsed =
+    	static_cast<double>(time(NULL) - starttime);
+      const double fps =
+    	static_cast<double>(i - STARTFRAMES) / seconds_elapsed;
+      const double seconds_left =
+    	static_cast<double>(totalframes - i) / fps;
       fprintf(stderr, "Wrote %s (%.1f%% / %.1fm left).\n",
 	      filename.c_str(),
-	      (100.0 * (i - STARTFRAMES)) / totalframes,
+    	      (100.0 * static_cast<double>(i - STARTFRAMES)) /
+    		static_cast<double>(totalframes),
 	      seconds_left / 60.0);
     }
 
     fprintf(stderr, "Done.\n");
   }
 
-  int startframe, maxframe;
+  size_t startframe = 0;
+  size_t maxframe = 0;
 
   // 1/4 HD = 480x270
-  static const int width = 480;
-  static const int height = 270;
+  static constexpr int width = 480;
+  static constexpr int height = 270;
   uint8 rgba[width * height * 4];
-  uint8 *rgba4x;
+  std::unique_ptr<uint8[]> rgba4x;
 
   Graphic controller, controllerdown;
 

@@ -2,10 +2,11 @@
 #ifndef __THREADUTIL_H
 #define __THREADUTIL_H
 
-#include <vector>
-#include <thread>
-#include <mutex>
+#include <algorithm>
 #include <functional>
+#include <mutex>
+#include <thread>
+#include <vector>
 
 #if 0 // not needed with TDM  - tom7 11 Oct 2015
 
@@ -32,31 +33,32 @@
     void ParallelAppi(const std::vector<T> &vec,
                       const F &f,
                       int max_concurrency) {
+  const size_t vec_size = vec.size();
   // TODO: XXX This cast may really be unsafe, since these vectors
   // could exceed 32 bit ints in practice.
-  max_concurrency = std::min((int)vec.size(), max_concurrency);
+  max_concurrency = std::min(static_cast<int>(vec_size), max_concurrency);
   // Need at least one thread for correctness.
   max_concurrency = std::max(max_concurrency, 1);
   std::mutex index_m;
-  int next_index = 0;
+  size_t next_index = 0;
   
   // Thread applies f repeatedly until there are no more indices.
   // PERF: Can just start each thread knowing its start index, and avoid
   // the synchronization overhead at startup.
-  auto th = [&index_m, &next_index, &vec, &f]() {
+  auto th = [&index_m, &next_index, &vec, vec_size, &f]() -> auto {
     for (;;) {
       index_m.lock();
-      if (next_index == vec.size()) {
+      if (next_index == vec_size) {
 	// All done. Don't increment counter so that other threads can
 	// notice this too.
 	index_m.unlock();
 	return;
       }
-      int my_index = next_index++;
+      const size_t my_index = next_index++;
       index_m.unlock();
 
       // Do work, not holding mutex.
-      (void)f(my_index, vec[my_index]);
+      (void)f(static_cast<int>(my_index), vec[my_index]);
     }
   };
 
@@ -75,7 +77,7 @@ void ParallelApp(const std::vector<T> &vec,
 		 const F &f,
 		 int max_concurrency) {
   std::function<void(int, const T &)> ff =
-    [&f](int i_unused, const T &arg) { return f(arg); };
+    [&f]([[maybe_unused]] int i_unused, const T &arg) -> auto { return f(arg); };
   ParallelAppi(vec, ff, max_concurrency);
 }
 
@@ -95,7 +97,7 @@ void ParallelComp(int num,
   // Thread applies f repeatedly until there are no more indices.
   // PERF: Can just start each thread knowing its start index, and avoid
   // the synchronization overhead at startup.
-  auto th = [&index_m, &next_index, num, &f]() {
+  auto th = [&index_m, &next_index, num, &f]() -> auto {
     for (;;) {
       index_m.lock();
       if (next_index == num) {
@@ -123,7 +125,7 @@ void ParallelComp(int num,
 
 // Drop-in serial replacement for debugging, etc.
 template<class F>
-void UnParallelComp(int num, const F &f, int max_concurrency_ignored) {
+void UnParallelComp(int num, const F &f, [[maybe_unused]] int max_concurrency_ignored) {
   for (int i = 0; i < num; i++) (void)f(i);
 }
 
@@ -155,13 +157,13 @@ auto ParallelMap(const std::vector<T> &vec,
 // Drop in replacement for testing, debugging, etc.
 template<class T, class F>
 auto UnParallelMap(const std::vector<T> &vec,
-		   const F &f, int max_concurrency_ignored) ->
+                   const F &f, [[maybe_unused]] int max_concurrency_ignored) ->
   std::vector<decltype(f(vec.front()))> {
   using R = decltype(f(vec.front()));
   std::vector<R> result;
   result.resize(vec.size());
 
-  for (int i = 0; i < vec.size(); i++) {
+  for (size_t i = 0; i < vec.size(); ++i) {
     result[i] = f(vec[i]);
   }
 
@@ -177,7 +179,7 @@ struct MutexLock {
 // Read with the mutex that protects it. T must be copyable,
 // obviously!
 template<class T>
-T ReadWithLock(std::mutex *m, const T *t) {
+auto ReadWithLock(std::mutex *m, const T *t) -> T {
   MutexLock ml(m);
   return *t;
 }

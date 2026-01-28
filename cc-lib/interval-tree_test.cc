@@ -1,8 +1,10 @@
 
 #include "interval-tree.h"
 
-#include <stdlib.h>
+#include <cstdlib>
+#include <print>
 #include <set>
+#include <utility>
 #include <vector>
 #include <string>
 
@@ -16,34 +18,35 @@ using namespace std;
 template<class T>
 static void Shuffle(vector<T> *v) {
   static ArcFour rc("shuffler");
-  for (int i = 0; i < v->size(); i++) {
+  for (size_t i = 0; i < v->size(); ++i) {
     unsigned int h = 0;
     h = (h << 8) | rc.Byte();
     h = (h << 8) | rc.Byte();
     h = (h << 8) | rc.Byte();
     h = (h << 8) | rc.Byte();
 
-    int j = h % v->size();
+    const size_t j = h % v->size();
     if (i != j) {
+      using std::swap;
       swap((*v)[i], (*v)[j]);
     }
   }
 }
 
 template<class T>
-static bool ContainsKey(const set<T> &s, const T &k) {
+static auto ContainsKey(const set<T> &s, const T &k) -> bool {
   return s.find(k) != s.end();
 }
 
 struct Unit {};
 
 struct Insertable {
-  Insertable(double a, double b, string c) : a(a), b(b), c(c) {}
+  Insertable(double a, double b, string c) : a(a), b(b), c(std::move(c)) {}
   double a, b;
   string c;
 };
 
-int main(int argc, char *argv[]) {
+auto main([[maybe_unused]] int argc, [[maybe_unused]] char *argv[]) -> int {
   // Check that it compiles to use both int and double.
   { IntervalTree<int, Unit> unused; }
   { IntervalTree<double, Unit> unused; }
@@ -65,11 +68,11 @@ int main(int argc, char *argv[]) {
     CHECK(easy.UpperBound() == 7);
   }
 
-  typedef IntervalTree<double, string> IT;
+  using IT = IntervalTree<double, string>;
   auto IsSameSet = [](const set<string> &expected,
 		      const vector<IT::Interval *> &v) -> bool {
     if (expected.size() != v.size()) {
-      printf("Expected %lld elements, got %lld\n",
+      std::println("Expected {} elements, got {}",
 	     expected.size(), v.size());
       return false;
     }
@@ -78,12 +81,12 @@ int main(int argc, char *argv[]) {
     for (const IT::Interval *ival : v) {
       // No duplicates.
       if (ContainsKey(already, ival->t)) {
-	printf("Duplicate key: %s\n", ival->t.c_str());
+	std::println("Duplicate key: {}", ival->t);
 	return false;
       }
       already.insert(ival->t);
       if (!ContainsKey(expected, ival->t)) {
-	printf("Key present that shouldn't be: %s\n", ival->t.c_str());
+	std::println("Key present that shouldn't be: {}", ival->t);
 	return false;
       }
     }
@@ -135,6 +138,6 @@ int main(int argc, char *argv[]) {
     Shuffle(&data);
   }
 
-  printf("IntervalTree tests OK.\n");
+  std::println("IntervalTree tests OK.");
   return 0;
 }

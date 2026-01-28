@@ -5,6 +5,9 @@
 #ifndef __CCLIB_HEAP_H
 #define __CCLIB_HEAP_H
 
+#include <cstdio>
+#include <cstdlib>
+#include <print>
 #include <vector>
 
 struct Heapable {
@@ -27,10 +30,10 @@ class Heap {
     Value *value;
   };
 
-  bool Valid(Value *v) { return v->location != -1; }
+  auto Valid(Value *v) -> bool { return v->location != -1; }
 
   // With empty cells.
-  Heap() {}
+  Heap() = default;
 
   void Insert(Priority p, Value *v) {
     Cell c;
@@ -38,16 +41,17 @@ class Heap {
     c.value = v;
     // a la SetElem.
     cells.push_back(c);
-    v->location = cells.size() - 1;
+    const int index = static_cast<int>(cells.size() - 1);
+    v->location = index;
 
     // No children, so invariant violations are always upward.
-    PercolateUp(cells.size() - 1);
+    PercolateUp(index);
   }
 
   void Delete(Value *v) {
     int i = v->location;
     if (i == -1) {
-      fprintf(stderr, "Tried to delete value more than once.\n");
+      std::println(stderr, "Tried to delete value more than once.");
       abort();
     }
 
@@ -76,14 +80,14 @@ class Heap {
     }
   }
 
-  bool Empty() const {
+  [[nodiscard]] auto Empty() const -> bool {
     return cells.empty();
   }
 
   // May not be empty.
-  Cell PopMinimum() {
+  auto PopMinimum() -> Cell {
     if (cells.empty()) {
-      fprintf(stderr, "Can't PopMinimum on an empty heap.\n");
+      std::println(stderr, "Can't PopMinimum on an empty heap.");
       abort();
     }
 
@@ -94,13 +98,13 @@ class Heap {
     return c;
   }
 
-  Value *PopMinimumValue() {
+  auto PopMinimumValue() -> Value * {
     return PopMinimum().value;
   }
 
-  Cell GetCell(Value *v) const {
+  auto GetCell(Value *v) const -> Cell {
     if (v->location == -1) {
-      fprintf(stderr, "Attempt to GetCell on deleted value.\n");
+      std::println(stderr, "Attempt to GetCell on deleted value.");
       abort();
     }
 
@@ -115,7 +119,7 @@ class Heap {
     Insert(p, v);
   }
 
-  int Size() const {
+  [[nodiscard]] auto Size() const -> int {
     return cells.size();
   }
 
@@ -128,7 +132,7 @@ class Heap {
 
  private:
   // Requires that the heap be nonempty.
-  Cell RemoveLast() {
+  auto RemoveLast() -> Cell {
     Cell c = cells[cells.size() - 1];
     cells.resize(cells.size() - 1);
     return c;
@@ -153,9 +157,9 @@ class Heap {
   /* the element i may violate the order invariant by being too high.
      swap it with children until it doesn't. */
   void PercolateDown(int i) {
+    const int size = static_cast<int>(cells.size());
     // If we're at the end of the heap, nothing to do. */
-    if (2 * i + 1 >= cells.size()) return;
-
+    if (2 * i + 1 >= size) return;
     const Cell &me = cells[i];
     // Left and right children.
     const int li = 2 * i + 1;
@@ -166,7 +170,7 @@ class Heap {
 
     if (me.priority > cl.priority) {
       /* Need to swap, but with which child? */
-      if (ri >= cells.size()) {
+      if (ri >= size) {
         // No right child.
         SwapPercDown(i, me, li, cl);
       } else {
@@ -179,7 +183,7 @@ class Heap {
       }
     } else {
       /* Consider swap with right then. */
-      if (ri >= cells.size()) {
+      if (ri >= size) {
         // No right child, done.
         return;
       } else {

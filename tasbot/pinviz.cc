@@ -5,18 +5,19 @@
    Based on scopefun.cc.
  */
 
-#include <vector>
-#include <string>
-#include <set>
 #include <cmath>
+#include <memory>
+#include <set>
+#include <string>
+#include <vector>
 
 #include <unistd.h>
 #include <sys/types.h>
-#include <string.h>
-#include <errno.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <time.h>
+#include <cerrno>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <ctime>
 
 #include "tasbot.h"
 
@@ -107,11 +108,19 @@ struct PinViz {
     movie = SimpleFM2::ReadInputs(moviename);
     
     if (sf < 0) sf = 0;
-    if (!mf) mf = movie.size();
-    startframe = sf;
-    maxframe = mf;
+    startframe = static_cast<size_t>(sf);
+    if (mf == 0) {
+      maxframe = movie.size();
+    } else if (mf < 0) {
+      maxframe = 0;
+    } else {
+      maxframe = static_cast<size_t>(mf);
+    }
 
-    rgba4x = (uint8 *) malloc(sizeof (uint8) * (width * 4) * (height * 4) * 4);
+    const size_t width4x = static_cast<size_t>(width) * 4;
+    const size_t height4x = static_cast<size_t>(height) * 4;
+    const size_t rgba4x_bytes = width4x * height4x * 4;
+    rgba4x = std::make_unique<uint8[]>(rgba4x_bytes);
     CHECK(rgba4x);
 
     ClearBuffer();
@@ -130,7 +139,7 @@ struct PinViz {
   }
 
   inline void WritePixel(int x, int y,
-			 uint8 r, uint8 g, uint8 b, uint8 a) {
+			 uint8 r, uint8 g, uint8 b, [[maybe_unused]] uint8 a) {
     CHECK(x >= 0);
     CHECK(y >= 0);
     CHECK(x < width);
@@ -143,7 +152,7 @@ struct PinViz {
   }
 
   inline void WritePixelTo(int x, int y,
-			   uint8 r, uint8 g, uint8 b, uint8 a,
+         uint8 r, uint8 g, uint8 b, [[maybe_unused]] uint8 a,
 			   uint8 *vec,
 			   int ww, int hh) {
     CHECK(x >= 0);
@@ -158,7 +167,7 @@ struct PinViz {
   }
 
   // Blit(256, 256, 0, 0, 256, 200, 0, 50, screens[i]);
-  void Blit(int srcwidth, int srcheight,
+  void Blit(int srcwidth, [[maybe_unused]] int srcheight,
 	    int rectx, int recty,
 	    int rectw, int recth,
 	    int dstx, int dsty,
@@ -225,23 +234,21 @@ struct PinViz {
     static const int PXSIZE = 4;
     const int width4x = width * PXSIZE;
     const int height4x = height * PXSIZE;
-    CHECK(PngSave::SaveAlpha(filename, width4x, height4x, rgba4x));
+    CHECK(PngSave::SaveAlpha(filename, width4x, height4x, rgba4x.get()));
   }
 
-  void SaveAV(const string &dir) {
-    // Represents the memory BEFORE each frame. Will be one
-    // larger than the movie size.
-    vector< vector<uint8> > memories;
+  void SaveAV([[maybe_unused]] const string &dir) {
     // Screen AFTER each frame.
     vector< vector<uint8> > screens;
 
     // maxframe = 10000;
 
-    for (int i = startframe;
-	 i < movie.size() && i < maxframe + 2; i++) {
+    const size_t max_frame_limit = maxframe + 2;
+    for (size_t i = startframe;
+	 i < movie.size() && i < max_frame_limit; ++i) {
       vector<uint8> screen;
 
-      if (i % 100 == 0) fprintf(stderr, "%d.\n", i);
+      if (i % 100 == 0) fprintf(stderr, "%zu.\n", i);
       Emulator::StepFull(movie[i]);
       // Image.
       Emulator::GetImage(&screen);
@@ -255,9 +262,9 @@ struct PinViz {
     bonus.resize(256 * 256 * 3, 0.0);
     unknown.resize(256 * 256 * 3, 0.0);
     int num_high = 0, num_low = 0, num_bonus = 0, num_unknown = 0;
-    for (int i = 0; i < screens.size(); i++) {
+    for (size_t i = 0; i < screens.size(); ++i) {
       if (i % 100 == 0) {
-	fprintf(stderr, "%d of %d...\n", i, screens.size());
+  	fprintf(stderr, "%zu of %zu...\n", i, screens.size());
       }
       switch (WhichRoom(screens[i])) {
       case HIGH:
@@ -330,21 +337,22 @@ struct PinViz {
     return a.lum == b.lum;
   }
 
-  static int GetIndex(const vector<RGBL> &vec, RGBL rgbl) {
-    return std::distance(vec.begin(),
-			 std::lower_bound(vec.begin(), vec.end(), rgbl,
-					  CompareRGBL));
+  static size_t GetIndex(const vector<RGBL> &vec, const RGBL &rgbl) {
+    return static_cast<size_t>(std::distance(
+        vec.begin(),
+        std::lower_bound(vec.begin(), vec.end(), rgbl, CompareRGBL)));
   }
 
-  static double GetFrac(const vector<RGBL> &vec, RGBL rgbl) {
-    return GetIndex(vec, rgbl) / (double)vec.size();
+  static double GetFrac(const vector<RGBL> &vec, const RGBL &rgbl) {
+    return static_cast<double>(GetIndex(vec, rgbl)) /
+      static_cast<double>(vec.size());
   }
 
-  void MapAndWrite(const string &filename, 
+  void MapAndWrite(const string &filename,
 		   const vector<double> &mixed,
-		   int num) {
+		   [[maybe_unused]] int num) {
     ClearBuffer();
-    CHECK(width * height * 3 == mixed.size());
+    CHECK(static_cast<size_t>(width * height * 3) == mixed.size());
 
     double darkest = 1.0, lightest = 0.0;
     vector<RGBL> all_colors;
@@ -371,7 +379,9 @@ struct PinViz {
     }
     
     std::sort(all_colors.begin(), all_colors.end(), &CompareRGBL);
-    std::unique(all_colors.begin(), all_colors.end(), &RGBLEq);
+    const auto unique_end =
+      std::unique(all_colors.begin(), all_colors.end(), &RGBLEq);
+    all_colors.erase(unique_end, all_colors.end());
 
     for (int y = 0; y < height; y++) {
       for (int x = 0; x < width; x++) {
@@ -426,7 +436,8 @@ struct PinViz {
 
   void Mix(const vector<uint8> &screen,
 	   vector<double> *mixed) {
-    for (int i = 0; i < screen.size() >> 2; i++) {
+    const size_t pixel_count = screen.size() >> 2;
+    for (size_t i = 0; i < pixel_count; ++i) {
       double r = screen[i * 4 + 0];
       double g = screen[i * 4 + 1];
       double b = screen[i * 4 + 2];
@@ -437,14 +448,15 @@ struct PinViz {
     }
   }
 
-  int startframe, maxframe;
+  size_t startframe = 0;
+  size_t maxframe = 0;
 
   // Was 220x240.
   // 1/4 HD = 480x270
-  static const int width = 256;
-  static const int height = 256;
+  static constexpr int width = 256;
+  static constexpr int height = 256;
   uint8 rgba[width * height * 4];
-  uint8 *rgba4x;
+  std::unique_ptr<uint8[]> rgba4x;
 
   string game;
   vector<uint8> movie;

@@ -1,5 +1,5 @@
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstdio>
+#include <cstdlib>
 
 #include "fceu/types.h"
 // #include "fceu/fceu.h"
@@ -49,8 +49,7 @@ WaveFile::WaveFile(const string &filename) : wsize(0) {
 
 void WaveFile::Write(const vector<int16> &vec) {
   CHECK(outfile);
-  for (int i = 0; i < vec.size(); i++) {
-    uint16 tmp = vec[i];
+  for (unsigned short tmp : vec) {
     CHECK(EOF != fputc(tmp & 255, outfile));
     CHECK(EOF != fputc(tmp >> 8, outfile));
     wsize += 2;
@@ -58,7 +57,7 @@ void WaveFile::Write(const vector<int16> &vec) {
 }
 
 WaveFile::~WaveFile() {
-  if (outfile != NULL) {
+  if (outfile != nullptr) {
     Close();
   }
 }
@@ -81,6 +80,6 @@ void WaveFile::Close() {
  fputc((s>>24)&0xFF, outfile);
 
  fclose(outfile);
- outfile = NULL;
+ outfile = nullptr;
  wsize = 0;
 }

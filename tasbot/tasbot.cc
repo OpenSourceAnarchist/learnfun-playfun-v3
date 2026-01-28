@@ -2,10 +2,12 @@
 
 #include <unistd.h>
 #include <sys/types.h>
-#include <string.h>
-#include <errno.h>
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstring>
+#include <cerrno>
+#include <cstdio>
+#include <cstdlib>
+
+#include <print>
 
 #include "tasbot.h"
 
@@ -87,7 +89,7 @@ struct Node : public Heapable {
 
 // Get the hashcode for the current state. This is based just on RAM.
 // XXX should include registers too, right?
-static uint64 GetHashCode() {
+static auto GetHashCode() -> uint64 {
 #if 0
   uint64 a = 0xDEADBEEFCAFEBABEULL,
     b = 0xDULL,
@@ -144,7 +146,7 @@ static uint64 GetHashCode() {
 
 // Magic "game location" address.
 // See addresses.txt
-static uint32 GetLoc() {
+static auto GetLoc() -> uint32 {
   return (RAM[0x0080] << 24) |
     (RAM[0x0081] << 16) |
     (RAM[0x0082] << 8) |
@@ -152,14 +154,14 @@ static uint32 GetLoc() {
 }
 
 // Next byte up is used after you hit a guy, sometimes?
-inline static bool KarateBattle(uint32 loc) {
+inline static auto KarateBattle(uint32 loc) -> bool {
   return (loc & 0xFFFFFF) == 0x10000;
 }
 
 // Determine if this state should be avoided
 // completely. For example, if we die or enter
 // some optional bonus stage.
-static bool IsBad() {
+static auto IsBad() -> bool {
 
   // Number of lives
   // n.b. this would allow me to get an extra
@@ -186,7 +188,7 @@ static bool IsBad() {
 // Return true if we've won.
 // For now this is just killing the
 // dude in the first battle.
-static bool IsWon() {
+static auto IsWon() -> bool {
   // Magic "game location" address.
   uint32 loc = GetLoc();
 
@@ -194,7 +196,7 @@ static bool IsWon() {
     return RAM[0x008B] == 0;
   }
 
-  fprintf(stderr, "Exited karate battle? %u\n", loc);
+  std::println(stderr, "Exited karate battle? {}", loc);
   abort();
   return false;
 }
@@ -202,7 +204,7 @@ static bool IsWon() {
 // This must return an unsigned number 0-0xFFFFFFFF
 // where larger numbers are closer to the end of
 // the game.
-static uint32 GetHeuristic() {
+static auto GetHeuristic() -> uint32 {
   // Magic "game location" address.
   uint32 loc = GetLoc();
 
@@ -219,12 +221,12 @@ static uint32 GetHeuristic() {
     // More damage is better.
     uint8 damage = 0xFF - (uint8)RAM[0x008B];
     // XXX need to fix this when facing left.
-    uint8 xcoord = (uint8)RAM[0x0502];
+    auto xcoord = (uint8)RAM[0x0502];
     // XXX y coordinate?
     // fprintf(stderr, "damage %u xcoord %u\n", damage, xcoord);
     return (damage << 16) | xcoord;
   } else {
-    fprintf(stderr, "Exited karate battle? %u\n", loc);
+    std::println(stderr, "Exited karate battle? {}", loc);
     abort();
     // return 0xFFFFFFFF;
     // abort();
@@ -234,15 +236,15 @@ static uint32 GetHeuristic() {
 }
 
 // Initialized at startup.
-static vector<uint8> *basis = NULL;
+static vector<uint8> *basis = nullptr;
 
-static Node *MakeNode(Node *prev, uint8 input) {
+static auto MakeNode(Node *prev, uint8 input) -> Node * {
   Node *n = new Node;
   n->prev = prev;
   // PERF Shouldn't need to initialize this?
   n->location = -1;
 
-  n->distance = (prev == NULL) ? 0 : (prev->distance + 1);
+  n->distance = (prev == nullptr) ? 0 : (prev->distance + 1);
   // Note, ignored if prev == NULL.
   n->input = input;
 
@@ -256,23 +258,23 @@ static Node *MakeNode(Node *prev, uint8 input) {
   return n;
 }
 
-static uint64 Priority(const Node *n) {
+static auto Priority(const Node *n) -> uint64 {
   return (uint64)0xFFFFFFFFULL - (uint64)n->heuristic;
   // return n->distance + (0xFFFFFFFF - n->heuristic);
   // return ((uint64)n->distance << 32) | (0xFFFFFFFF - n->heuristic);
 }
 
-typedef Heap<uint64, Node> GameHeap;
-typedef hash_map<uint64, Node *> GameHash;
+using GameHeap = Heap<uint64, Node>;
+using GameHash = hash_map<uint64, Node *>;
 
 // Load the emulator state for this node.
 static void LoadNode(const Node *n) {
-  if (n == NULL) {
-    fprintf(stderr, "Invariant violation in LoadNode\n");
+  if (n == nullptr) {
+    std::println(stderr, "Invariant violation in LoadNode");
     abort();
   }
 
-  if (n->savestate == NULL) {
+  if (n->savestate == nullptr) {
     // Recurse and replay inputs on the way back.
     LoadNode(n->prev);
     Emulator::Step(n->input);
@@ -287,7 +289,7 @@ static void WriteMovie(const string &moviename,
   vector<uint8> inputs = start_inputs;
 
   vector<uint8> rev;
-  while (winstate->prev != NULL) {
+  while (winstate->prev != nullptr) {
     rev.push_back(winstate->input);
     winstate = winstate->prev;
   }
@@ -299,13 +301,13 @@ static void WriteMovie(const string &moviename,
   SimpleFM2::WriteInputs(moviename + ".fm2", "karate.nes",
                          "base64:6xX0UBv8pLORyg1PCzbWcA==",
                          inputs);
-  fprintf(stderr, "Wrote movie!\n");
+  std::println(stderr, "Wrote movie!");
 }
 
 template<class T>
 static void Shuffle(vector<T> *v) {
   static uint64 h = 0xCAFEBABEDEADBEEFULL;
-  for (int i = 0; i < v->size(); i++) {
+  for (size_t i = 0; i < v->size(); ++i) {
     h *= 31337;
     h ^= 0xFEEDFACE;
     h = (h >> 17) | (h << (64 - 17));
@@ -313,8 +315,9 @@ static void Shuffle(vector<T> *v) {
     h *= 65537;
     h ^= 0x3141592653589ULL;
 
-    int j = h % v->size();
+    const size_t j = h % v->size();
     if (i != j) {
+      using std::swap;
       swap((*v)[i], (*v)[j]);
     }
   }
@@ -323,8 +326,8 @@ static void Shuffle(vector<T> *v) {
 /**
  * The main loop for the SDL.
  */
-int main(int argc, char *argv[]) {
-  fprintf(stderr, "Nodes are %ld bytes\n", sizeof(Node));
+auto main([[maybe_unused]] int argc, [[maybe_unused]] char *argv[]) -> int {
+  std::println(stderr, "Nodes are {} bytes", sizeof(Node));
 
   Emulator::Initialize("karate.nes");
 
@@ -336,23 +339,23 @@ int main(int argc, char *argv[]) {
   // There are 98 frames before the initial battle begins.
   // But the opening whistle goes until about 130.
   start_inputs.resize(130);
-  for (int i = 0; i < start_inputs.size(); i++) {
-    Emulator::Step(start_inputs[i]);
+  for (unsigned char start_input : start_inputs) {
+    Emulator::Step(start_input);
   }
 
-  fprintf(stderr, "Starting...\n");
+  std::println(stderr, "Starting...");
 
   GameHash nodes;
 
-  Node *start = MakeNode(NULL, 0x0);
+  Node *start = MakeNode(nullptr, 0x0);
   nodes[GetHashCode()] = start;
 
-  fprintf(stderr, "Insert..\n");
+  std::println(stderr, "Insert..");
 
   GameHeap queue;
-  fprintf(stderr, "Created heap\n");
+  std::println(stderr, "Created heap");
   uint64 p = Priority(start);
-  fprintf(stderr, "priority %lx\n", p);
+  std::println(stderr, "priority {:x}", p);
   queue.Insert(p, start);
 
   uint64 bad_nodes = 0;
@@ -361,13 +364,13 @@ int main(int argc, char *argv[]) {
   uint64 wrotelastdeepest = 0;
 
   uint32 heuristicest = 0;
-  uint64 wrotelastheuristic = 0;
+  [[maybe_unused]] uint64 wrotelastheuristic = 0;
 
   uint64 processed = 0;
   uint64 rediscovered = 0, rediscovered_obsolete = 0,
     rediscovered_same_or_worse = 0;
 
-  fprintf(stderr, "Start queue.\n");
+  std::println(stderr, "Start queue.");
   while (!queue.Empty()) {
     Node *explore = queue.PopMinimumValue();
     CHECK(explore->location == -1);
@@ -375,7 +378,7 @@ int main(int argc, char *argv[]) {
     processed++;
     if (processed % 1000 == 0) {
       // XXX report deepest?
-      fprintf(stderr, "%lu bad %lu queue %lu dist %d (re %lu ob %lu sow %lu)\n",
+      std::println(stderr, "{} bad {} queue {} dist {} (re {} ob {} sow {})",
               processed, bad_nodes, queue.Size(), explore->distance,
               rediscovered, rediscovered_obsolete,
               rediscovered_same_or_worse);
@@ -390,7 +393,7 @@ int main(int argc, char *argv[]) {
 
     if (explore->distance > deepest) {
       deepest = explore->distance;
-      fprintf(stderr, "New deepest: %d heu %x\n", deepest, explore->heuristic);
+      std::println(stderr, "New deepest: {} heu {:x}", deepest, explore->heuristic);
       if (deepest > 12 && (processed - wrotelastdeepest) < 100) {
         WriteMovie("deepest", start_inputs, explore);
         wrotelastdeepest = processed;
@@ -399,7 +402,7 @@ int main(int argc, char *argv[]) {
 
     if (explore->heuristic > heuristicest) {
       heuristicest = explore->heuristic;
-      fprintf(stderr, "New best heuristic: %d steps heu %x\n",
+      std::println(stderr, "New best heuristic: {} steps heu {:x}",
               explore->distance,
               explore->heuristic);
       if (heuristicest > 0xfa007d /* && (processed - wrotelastheuristic) < 100 */) {
@@ -417,16 +420,15 @@ int main(int argc, char *argv[]) {
                                   INPUT_R | INPUT_U, INPUT_L | INPUT_U,
                                   INPUT_R | INPUT_D, INPUT_L | INPUT_D };
     vector<uint8> next;
-    for (int b = 0; b < sizeof(buttons); b++) {
-      for (int d = 0; d < sizeof(dirs); d++) {
-        next.push_back(buttons[b] | dirs[d]);
+    for (unsigned char button : buttons) {
+      for (unsigned char dir : dirs) {
+        next.push_back(button | dir);
       }
     }
 
     Shuffle(&next);
 
-    for (int n = 0; n < next.size(); n++) {
-      uint8 input = next[n];
+    for (unsigned char input : next) {
       // Only way to try a new input is to load the explore node
       // and make a step.
       // PERF: Should probably have LoadNode return the save state
@@ -443,7 +445,7 @@ int main(int argc, char *argv[]) {
         bad_nodes++;
       } else {
         uint64 h = GetHashCode();
-        GameHash::const_iterator it = nodes.find(h);
+        auto it = nodes.find(h);
 
         if (it == nodes.end()) {
           Node *now = MakeNode(explore, input);

@@ -10,18 +10,19 @@
 #ifndef __CCLIB_ARCFOUR_H
 #define __CCLIB_ARCFOUR_H
 
+#include <array>
+#include <cstdint>
 #include <string>
 #include <vector>
-#include <cstdint>
 
 struct ArcFour {
-  typedef uint8_t uint8;
+  using uint8 = uint8_t;
 
   explicit ArcFour(const std::vector<uint8> &v);
   explicit ArcFour(const std::string &s);
 
   // Get the next byte.
-  uint8 Byte();
+  auto Byte() -> uint8;
 
   // Discard n bytes from the stream. It is
   // strongly recommended that new uses of
@@ -32,7 +33,7 @@ struct ArcFour {
 
 private:
   uint8 ii, jj;
-  uint8 ss[256];
+  std::array<uint8, 256> ss{};
 };
 
 #endif

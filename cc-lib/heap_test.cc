@@ -1,6 +1,7 @@
 
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstdio>
+#include <cstdlib>
+#include <print>
 #include <string>
 #include <cstdint>
 
@@ -15,7 +16,7 @@ struct TestValue : public Heapable {
   uint64 i;
 };
 
-static uint64 CrapHash(int a) {
+static auto CrapHash(int a) -> uint64 {
   uint64 ret = ~a;
   ret *= 31337;
   ret ^= 0xDEADBEEF;
@@ -26,55 +27,55 @@ static uint64 CrapHash(int a) {
   return ret;
 }
 
-int main () {
+auto main () -> int {
   static constexpr int kNumValues = 1000;
   
   Heap<uint64, TestValue> heap;
   
   vector<TestValue> values;
   for (int i = 0; i < kNumValues; i++) {
-    values.push_back(TestValue(CrapHash(i)));
+    values.emplace_back(CrapHash(i));
   }
 
-  for (int i = 0; i < values.size(); i++) {
-    heap.Insert(values[i].i, &values[i]);
+  for (auto & value : values) {
+    heap.Insert(value.i, &value);
   }
 
   TestValue *last = heap.PopMinimumValue();
   while (!heap.Empty()) {
     TestValue *now = heap.PopMinimumValue();
-    fprintf(stderr, "%llu %llu\n", last->i, now->i);
+    std::println(stderr, "{} {}", last->i, now->i);
     if (now->i < last->i) {
-      printf("FAIL: %llu %llu\n", last->i, now->i);
+      std::println("FAIL: {} {}", last->i, now->i);
       return -1;
     }
     last = now;
   }
 
-  for (int i = 0; i < values.size(); i++) {
+  for (size_t i = 0; i < values.size(); ++i) {
     if (values[i].location != -1) {
-      printf("FAIL! %d still in heap at %d\n", i, values[i].location);
+      std::println("FAIL! {} still in heap at {}", i, values[i].location);
       return -1;
     }
   }
   
-  for (int i = 0; i < values.size() / 2; i++) {
+  for (size_t i = 0; i < values.size() / 2; ++i) {
     heap.Insert(values[i].i, &values[i]);
   }
 
   heap.Clear();
   if (!heap.Empty()) {
-    printf("FAIL: Heap not empty after clear?\n");
+    std::println("FAIL: Heap not empty after clear?");
     return -1;
   }
 
-  for (int i = 0; i < values.size() / 2; i++) {
+  for (size_t i = 0; i < values.size() / 2; ++i) {
     if (values[i].location != -1) {
-      printf("FAIL (B)! %d still in heap at %d\n", i, values[i].location);
+      std::println("FAIL (B)! {} still in heap at {}", i, values[i].location);
       return -1;
     }
   }
   
-  printf("OK\n");
+  std::println("OK");
   return 0;
 }

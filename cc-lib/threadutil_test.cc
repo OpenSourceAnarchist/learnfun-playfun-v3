@@ -1,6 +1,7 @@
 
 #include "threadutil.h"
 
+#include <print>
 #include <vector>
 #include <string>
 
@@ -9,7 +10,7 @@
 
 using namespace std;
 
-int Square(int i) {
+auto Square(int i) -> int {
   return i * i;
 }
 
@@ -17,12 +18,12 @@ template<class T>
 static void CheckSameVec(const vector<T> &a,
 			 const vector<T> &b) {
   CHECK(a.size() == b.size()) << "\n" << a.size() << " != " << b.size();
-  for (int i = 0; i < a.size(); i++) {
+  for (size_t i = 0; i < a.size(); ++i) {
     CHECK(a[i] == b[i]) << "\n" << a[i] << " != " << b[i];
   }
 }
 
-int main(int argc, char **argv) {
+auto main([[maybe_unused]] int argc, [[maybe_unused]] char **argv) -> int {
   {
     vector<int> v = { 3, 2, 1 };
     vector<int> vs = ParallelMap(v, Square, 25);
@@ -40,7 +41,7 @@ int main(int argc, char **argv) {
     for (int i = 0; i < 100; i++)
       v.push_back(StringPrintf("hello %d", i));
 
-    auto F = [](const string &s) { return s + " world"; };
+    auto F = [](const string &s) -> string { return s + " world"; };
     
     for (int i = 0; i < 20; i++) {
       CheckSameVec(UnParallelMap(v, F, i), ParallelMap(v, F, i));
@@ -48,6 +49,6 @@ int main(int argc, char **argv) {
     
   }
   
-  printf("OK.\n");
+  std::println("OK.");
   return 0;
 }

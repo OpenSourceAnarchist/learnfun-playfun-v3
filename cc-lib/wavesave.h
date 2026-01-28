@@ -8,9 +8,9 @@
 
 struct WaveSave {
 
-  static bool SaveStereo(const std::string &filename,
+  static auto SaveStereo(const std::string &filename,
                          const std::vector<std::pair<float, float>> &samples,
-                         int samples_per_sec);
+                         int samples_per_sec) -> bool;
 
 };
 

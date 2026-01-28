@@ -10,9 +10,9 @@ struct PngSave {
      width * height * 4 r,g,b,a quadruplets, in that order
      (regardless of endianness).
      returns true on success. */
-  static bool SaveAlpha(const std::string &filename,
+  static auto SaveAlpha(const std::string &filename,
                         int width, int height,
-                        const unsigned char *rgba);
+                        const unsigned char *rgba) -> bool;
 
   // XXX no-alpha version
 };
